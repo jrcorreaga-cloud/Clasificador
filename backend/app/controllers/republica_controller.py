@@ -1,9 +1,121 @@
-# Ey, acá ponemos las rutas del sistema de búsqueda. ¡Cuidado con romper los endpoints!
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy.orm import Session
+from typing import List, Optional
 
-from fastapi import APIRouter
+from app.core.database import get_db
+from app.core.deps import get_current_user
+from app.models.republica_model import Republica
+from app.models.usuario_model import Usuario
+from app.schemas.republica_schema import RepublicaCreate, RepublicaUpdate, RepublicaResponse, GeneroPermitido
 
-router = APIRouter()
+router = APIRouter(prefix="/republicas", tags=["Repúblicas"])
 
-@router.get("/hello")
-def say_hello():
-    return {"mensaje": "¡Hola Mundo! El backend en FastAPI está vivo y coleando 🚀"}
+@router.post("/", response_model=RepublicaResponse, status_code=status.HTTP_201_CREATED)
+def create_republica(
+    republica_in: RepublicaCreate,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user)
+):
+    # Verificamos que solo los dueños puedan publicar
+    if current_user.rol != 'dueño':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Solo los dueños pueden registrar repúblicas"
+        )
+
+    # Validamos la regla de negocio: 1 dueño = 1 república
+    existing_republica = db.query(Republica).filter(Republica.id_duenho == current_user.id_usuario).first()
+    if existing_republica:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Ya tienes una república registrada. Solo se permite promocionar una propiedad por dueño."
+        )
+
+    new_republica = Republica(
+        **republica_in.model_dump(),
+        id_duenho=current_user.id_usuario
+    )
+    
+    db.add(new_republica)
+    db.commit()
+    db.refresh(new_republica)
+    
+    return new_republica
+
+@router.get("/", response_model=List[RepublicaResponse])
+def get_republicas(
+    min_precio: Optional[float] = Query(None, description="Precio mínimo"),
+    max_precio: Optional[float] = Query(None, description="Precio máximo"),
+    habitaciones: Optional[int] = Query(None, description="Mínimo de habitaciones"),
+    genero: Optional[GeneroPermitido] = Query(None, description="Género permitido"),
+    db: Session = Depends(get_db)
+):
+    # Query Builder dinámico (Senior approach)
+    query = db.query(Republica)
+
+    if min_precio is not None:
+        query = query.filter(Republica.precio >= min_precio)
+    if max_precio is not None:
+        query = query.filter(Republica.precio <= max_precio)
+    if habitaciones is not None:
+        query = query.filter(Republica.num_habitaciones >= habitaciones)
+    if genero is not None:
+        query = query.filter(Republica.genero_permitido == genero)
+        
+    return query.all()
+
+@router.get("/{republica_id}", response_model=RepublicaResponse)
+def get_republica(republica_id: int, db: Session = Depends(get_db)):
+    republica = db.query(Republica).filter(Republica.id_republica == republica_id).first()
+    if not republica:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="República no encontrada")
+    return republica
+
+@router.put("/{republica_id}", response_model=RepublicaResponse)
+def update_republica(
+    republica_id: int,
+    republica_in: RepublicaUpdate,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user)
+):
+    republica = db.query(Republica).filter(Republica.id_republica == republica_id).first()
+    
+    if not republica:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="República no encontrada")
+        
+    # Validamos que el dueño que edita es el verdadero dueño
+    if republica.id_duenho != current_user.id_usuario:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permisos para editar esta república"
+        )
+        
+    update_data = republica_in.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(republica, field, value)
+        
+    db.commit()
+    db.refresh(republica)
+    return republica
+
+@router.delete("/{republica_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_republica(
+    republica_id: int,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user)
+):
+    republica = db.query(Republica).filter(Republica.id_republica == republica_id).first()
+    
+    if not republica:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="República no encontrada")
+        
+    # Seguridad: solo el dueño la borra
+    if republica.id_duenho != current_user.id_usuario:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permisos para eliminar esta república"
+        )
+        
+    db.delete(republica)
+    db.commit()
+    return None
