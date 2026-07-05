@@ -28,4 +28,4 @@ services:
       MYSQL_USER: republica_dev
       MYSQL_PASSWORD: Republica_2026!
     ports:
-      - "3306:3306"
+      - "3307:3306"
