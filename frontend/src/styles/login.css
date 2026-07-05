@@ -1,17 +1,17 @@
 :root {
-  color-scheme: light;
-  --bg: #f5f7fb;
-  --surface: #ffffff;
-  --surface-soft: #f8fafc;
-  --border: #d8e0ea;
-  --text: #0f172a;
-  --muted: #64748b;
-  --primary: #0f766e;
-  --primary-strong: #115e59;
-  --accent: #ea580c;
-  --success: #166534;
-  --error: #b91c1c;
-  --shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+  color-scheme: dark;
+  --bg: #040a18;
+  --surface: rgba(10, 17, 40, 0.7);
+  --surface-soft: rgba(17, 27, 61, 0.8);
+  --border: rgba(0, 240, 255, 0.25);
+  --text: #ffffff;
+  --muted: #93c5fd;
+  --primary: #00f0ff;
+  --primary-strong: #00e5f2;
+  --accent: #00f0ff;
+  --success: #10b981;
+  --error: #ef4444;
+  --shadow: 0 12px 32px rgba(0, 240, 255, 0.15);
 }
 
 * {
@@ -28,7 +28,7 @@ body {
   margin: 0;
   font-family: Inter, "Segoe UI", system-ui, sans-serif;
   color: var(--text);
-  background: linear-gradient(180deg, #eef4fb 0%, #dde8f4 100%);
+  background: linear-gradient(180deg, #040a18 0%, #0a1128 100%);
 }
 
 a {
@@ -1168,4 +1168,141 @@ input {
     width: 100%;
     text-align: center;
   }
+}
+
+/* ═══════════════════════════════════════════════
+   PERSONA 3 RELOAD THEME OVERRIDES
+   ═══════════════════════════════════════════════ */
+.app-header {
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  backdrop-filter: blur(12px);
+}
+
+.dashboard-hero, .dashboard-section, .profile-card, .dashboard-card,
+.dashboard-info-card, .dashboard-list article, .dashboard-actions, .status-box,
+.login-hero, .login-card, .backend-check, .gender-fieldset, .rol-fieldset,
+.profile-hero-card, .profile-detail-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  border-radius: 12px;
+}
+
+.login-form input, .profile-edit-form__field input {
+  background: rgba(10, 17, 40, 0.8);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.login-form input:focus, .profile-edit-form__field input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
+}
+
+button {
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, background 0.2s ease-in-out !important;
+}
+
+.login-form button[type="submit"], .profile-btn--save, .dashboard-action {
+  background: var(--primary);
+  color: #040a18;
+  text-transform: uppercase;
+  font-weight: 800;
+  font-style: italic;
+  border-radius: 4px;
+  border: 1px solid transparent;
+}
+
+.login-form button[type="submit"]:hover, .profile-btn--save:hover, .dashboard-action:hover {
+  transform: skewX(-10deg) scale(1.02) !important;
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.6);
+  background: var(--primary-strong);
+}
+
+.login-form__secondary, .profile-btn--cancel, .profile-btn--edit, .app-header__nav-link, .app-header__profile-link {
+  background: transparent;
+  color: var(--primary);
+  border: 1px solid var(--primary);
+  text-transform: uppercase;
+  font-weight: 700;
+  font-style: italic;
+  border-radius: 4px;
+}
+
+.login-form__secondary:hover, .profile-btn--cancel:hover, .profile-btn--edit:hover, .app-header__nav-link:hover, .app-header__profile-link:hover {
+  transform: skewX(-10deg) scale(1.02) !important;
+  background: rgba(0, 240, 255, 0.1);
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
+}
+
+.dashboard-card--featured {
+  background: linear-gradient(145deg, rgba(0, 240, 255, 0.15), rgba(10, 17, 40, 0.9));
+  border-color: var(--primary);
+}
+
+h1, h2, h3 {
+  font-weight: 800;
+  font-style: italic;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text);
+  text-shadow: 2px 2px 0px rgba(0, 240, 255, 0.3);
+}
+
+.dashboard-hero__eyebrow, .dashboard-section__header span, .dashboard-card__tag, .profile-badge {
+  background: var(--primary);
+  color: #040a18;
+  border: none;
+  font-style: italic;
+}
+
+.user-menu__trigger {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 4px;
+}
+.user-menu__trigger:hover {
+  border-color: var(--primary);
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
+}
+
+.user-menu__panel {
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(12px);
+  border-radius: 8px;
+}
+.user-menu__item {
+  color: var(--text);
+  font-weight: 700;
+  font-style: italic;
+  text-transform: uppercase;
+}
+.user-menu__item:hover {
+  background: rgba(0, 240, 255, 0.15);
+  transform: skewX(-5deg);
+  color: var(--primary);
+}
+
+.login-shell::before {
+  background: radial-gradient(circle at 12% 18%, rgba(0, 240, 255, 0.15), transparent 22%),
+              radial-gradient(circle at 82% 22%, rgba(0, 100, 255, 0.15), transparent 20%);
+}
+.login-shell::after {
+  background: radial-gradient(circle at 50% 50%, rgba(0, 240, 255, 0.05), transparent 40%);
+}
+
+.dashboard-hero__stats article {
+  background: rgba(10, 17, 40, 0.8);
+  border-color: var(--border);
+}
+
+.hero-logo, .app-header__logo {
+  background: transparent;
+  border: 1px solid var(--primary);
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
 }
