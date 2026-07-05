@@ -85,3 +85,57 @@ export const updateUserProfile = async (profileData) => {
         handleAxiosError(err);
     }
 };
+
+/** Obtiene todas las repúblicas con filtros opcionales */
+export const getRepublicas = async (filters = {}) => {
+    try {
+        const params = {};
+        if (filters.minPrecio) params.min_precio = filters.minPrecio;
+        if (filters.maxPrecio) params.max_precio = filters.maxPrecio;
+        if (filters.habitaciones) params.habitaciones = filters.habitaciones;
+        if (filters.genero) params.genero = filters.genero;
+        const res = await api.get("/api/republicas", { params });
+        return res.data;
+    } catch (err) {
+        handleAxiosError(err);
+    }
+};
+
+/** Obtiene una república por ID */
+export const getRepublica = async (id) => {
+    try {
+        const res = await api.get(`/api/republicas/${id}`);
+        return res.data;
+    } catch (err) {
+        handleAxiosError(err);
+    }
+};
+
+/** Crea una nueva república (solo dueños) */
+export const createRepublica = async (republicaData) => {
+    try {
+        const res = await api.post("/api/republicas", republicaData);
+        return res.data;
+    } catch (err) {
+        handleAxiosError(err);
+    }
+};
+
+/** Actualiza una república (solo el dueño) */
+export const updateRepublica = async (id, republicaData) => {
+    try {
+        const res = await api.put(`/api/republicas/${id}`, republicaData);
+        return res.data;
+    } catch (err) {
+        handleAxiosError(err);
+    }
+};
+
+/** Elimina una república (solo el dueño) */
+export const deleteRepublica = async (id) => {
+    try {
+        await api.delete(`/api/republicas/${id}`);
+    } catch (err) {
+        handleAxiosError(err);
+    }
+};
