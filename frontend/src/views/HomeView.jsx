@@ -34,6 +34,8 @@ export default function HomeView() {
 
     // Republica states
     const [republicas, setRepublicas] = useState([]);
+    const [allRepublicas, setAllRepublicas] = useState([]);
+    const [favoriteRepublicaIds, setFavoriteRepublicaIds] = useState([]);
     const [loadingRepublicas, setLoadingRepublicas] = useState(false);
     const [filters, setFilters] = useState({ minPrecio: "", maxPrecio: "", habitaciones: "", genero: "" });
 
@@ -88,6 +90,27 @@ export default function HomeView() {
         };
     }, []);
 
+    useEffect(() => {
+        const storageKey = `repop-favorites-${authUser?.id ?? "guest"}`;
+        try {
+            const saved = localStorage.getItem(storageKey);
+            if (saved) {
+                setFavoriteRepublicaIds(JSON.parse(saved));
+            } else {
+                setFavoriteRepublicaIds([]);
+            }
+        } catch (e) {
+            setFavoriteRepublicaIds([]);
+        }
+    }, [authUser?.id]);
+
+    useEffect(() => {
+        const storageKey = `repop-favorites-${authUser?.id ?? "guest"}`;
+        try {
+            localStorage.setItem(storageKey, JSON.stringify(favoriteRepublicaIds));
+        } catch (e) {}
+    }, [favoriteRepublicaIds, authUser?.id]);
+
     // Cargar repúblicas cuando el usuario esté autenticado
     useEffect(() => {
         if (authUser) {
@@ -99,17 +122,21 @@ export default function HomeView() {
         setLoadingRepublicas(true);
         try {
             const data = await getRepublicas();
-            setRepublicas(Republica.fromList(data));
+            const mapped = Republica.fromList(data);
+            setAllRepublicas(mapped);
+            setRepublicas(mapped);
         } catch (e) {
-            // Si el backend falla, usar datos de ejemplo
-            setRepublicas(Republica.fromList([
+            const fallbackData = [
                 { id_republica: 1, nombre_republica: "República Horizonte", direccion: "Rua do Ouvidor, 123", precio: 850.00, num_habitaciones: 3, genero_permitido: "mixto", descripcion: "Próximo ao centro, ambiente tranquilo e regras claras para convivência." },
                 { id_republica: 2, nombre_republica: "Casa das Ladeiras", direccion: "Rua dos Inconfidentes, 45", precio: 650.00, num_habitaciones: 2, genero_permitido: "solo mujeres", descripcion: "Quartos individuais, internet estável e perfil ideal para quem estuda à noite." },
                 { id_republica: 3, nombre_republica: "Solar do Pilar", direccion: "Rua do Pilar, 789", precio: 720.00, num_habitaciones: 4, genero_permitido: "solo hombres", descripcion: "Espaço compartilhado com boa mobilidade e preferência para calouros." },
                 { id_republica: 4, nombre_republica: "República Aurora", direccion: "Rua Direita, 200", precio: 900.00, num_habitaciones: 2, genero_permitido: "mixto", descripcion: "Centro histórico, 2 vagas, banho quente." },
                 { id_republica: 5, nombre_republica: "República Mineira", direccion: "Bauxita, 56", precio: 550.00, num_habitaciones: 1, genero_permitido: "solo hombres", descripcion: "Ambiente silencioso, ideal para estudos." },
                 { id_republica: 6, nombre_republica: "República Acácia", direccion: "Rosário, 340", precio: 780.00, num_habitaciones: 4, genero_permitido: "mixto", descripcion: "Área de estudos, ótima convivência." },
-            ]));
+            ];
+            const mappedFallback = Republica.fromList(fallbackData);
+            setAllRepublicas(mappedFallback);
+            setRepublicas(mappedFallback);
         }
         setLoadingRepublicas(false);
     };
@@ -125,12 +152,12 @@ export default function HomeView() {
             const data = await getRepublicas(filtros);
             setRepublicas(Republica.fromList(data));
         } catch (e) {
-            // Filtrar localmente si falla el backend
-            let filtradas = Republica.fromList([
+            let fuente = allRepublicas.length > 0 ? allRepublicas : Republica.fromList([
                 { id_republica: 1, nombre_republica: "República Horizonte", direccion: "Rua do Ouvidor, 123", precio: 850.00, num_habitaciones: 3, genero_permitido: "mixto", descripcion: "Próximo ao centro, ambiente tranquilo." },
                 { id_republica: 2, nombre_republica: "Casa das Ladeiras", direccion: "Rua dos Inconfidentes, 45", precio: 650.00, num_habitaciones: 2, genero_permitido: "solo mujeres", descripcion: "Quartos individuais, internet estável." },
                 { id_republica: 3, nombre_republica: "Solar do Pilar", direccion: "Rua do Pilar, 789", precio: 720.00, num_habitaciones: 4, genero_permitido: "solo hombres", descripcion: "Espaço compartilhado, boa mobilidade." },
             ]);
+            let filtradas = [...fuente];
             if (filters.minPrecio) filtradas = filtradas.filter(r => r.precio >= Number(filters.minPrecio));
             if (filters.maxPrecio) filtradas = filtradas.filter(r => r.precio <= Number(filters.maxPrecio));
             if (filters.habitaciones) filtradas = filtradas.filter(r => r.habitaciones >= Number(filters.habitaciones));
@@ -142,8 +169,31 @@ export default function HomeView() {
 
     const limpiarFiltros = () => {
         setFilters({ minPrecio: "", maxPrecio: "", habitaciones: "", genero: "" });
-        cargarRepublicas();
+        if (allRepublicas.length > 0) {
+            setRepublicas(allRepublicas);
+        } else {
+            cargarRepublicas();
+        }
     };
+
+    const toggleFavorite = (rep) => {
+        const repId = rep.id;
+        const alreadyFavorite = favoriteRepublicaIds.includes(repId);
+        setFavoriteRepublicaIds((prev) => alreadyFavorite
+            ? prev.filter((id) => id !== repId)
+            : [...prev, repId]);
+        setStatus({
+            type: "success",
+            message: alreadyFavorite
+                ? "República removida dos favoritos."
+                : "República adicionada aos favoritos.",
+        });
+    };
+
+    const favoriteRepublicas = useMemo(() =>
+        allRepublicas.filter((rep) => favoriteRepublicaIds.includes(rep.id)),
+        [allRepublicas, favoriteRepublicaIds]
+    );
 
     const isUfopEmail = useMemo(
         () => registerData.correo.trim().toLowerCase().endsWith("@aluno.ufop.edu.br"),
@@ -482,6 +532,9 @@ export default function HomeView() {
                                         <span className="republica-card__precio">{rep.precioFormateado}</span>
                                         <span className="republica-card__habitaciones">{rep.habitaciones} quarto{rep.habitaciones !== 1 ? "s" : ""}</span>
                                     </div>
+                                    <button className="dashboard-action" onClick={() => toggleFavorite(rep)}>
+                                        {favoriteRepublicaIds.includes(rep.id) ? "★ Favorito" : "☆ Favoritar"}
+                                    </button>
                                 </div>
                             </article>
                         ))}
@@ -495,9 +548,36 @@ export default function HomeView() {
                     <span>Favoritos</span>
                     <h2>Repúblicas que você salvou</h2>
                 </div>
-                <div className="loading-container">
-                    <p>Você ainda não salvou nenhuma república como favorita.</p>
-                </div>
+                {favoriteRepublicas.length === 0 ? (
+                    <div className="loading-container">
+                        <p>Você ainda não salvou nenhuma república como favorita.</p>
+                    </div>
+                ) : (
+                    <div className="republicas-grid">
+                        {favoriteRepublicas.map((rep) => (
+                            <article key={rep.id} className="republica-card">
+                                <div className="republica-card__image">
+                                    <div className="republica-card__placeholder">
+                                        <span>🏠</span>
+                                    </div>
+                                    <span className="republica-card__genero">{rep.generoLabel}</span>
+                                </div>
+                                <div className="republica-card__body">
+                                    <h3 className="republica-card__title">{rep.nombre}</h3>
+                                    <p className="republica-card__direccion">{rep.direccion}</p>
+                                    <p className="republica-card__descripcion">{rep.descripcion}</p>
+                                    <div className="republica-card__details">
+                                        <span className="republica-card__precio">{rep.precioFormateado}</span>
+                                        <span className="republica-card__habitaciones">{rep.habitaciones} quarto{rep.habitaciones !== 1 ? "s" : ""}</span>
+                                    </div>
+                                    <button className="dashboard-action dashboard-action--primary" onClick={() => toggleFavorite(rep)}>
+                                        Remover dos favoritos
+                                    </button>
+                                </div>
+                            </article>
+                        ))}
+                    </div>
+                )}
             </section>
 
             {/* Perfil Seeker */}
