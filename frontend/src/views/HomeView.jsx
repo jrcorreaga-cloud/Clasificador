@@ -39,6 +39,7 @@ export default function HomeView() {
     const [favoriteRepublicaIds, setFavoriteRepublicaIds] = useState([]);
     const [loadingRepublicas, setLoadingRepublicas] = useState(false);
     const [filters, setFilters] = useState({ minPrecio: "", maxPrecio: "", habitaciones: "", genero: "" });
+    const [selectedRepublica, setSelectedRepublica] = useState(null);
 
     // Dueño form states
     const [showRepublicaForm, setShowRepublicaForm] = useState(false);
@@ -212,6 +213,15 @@ export default function HomeView() {
         allRepublicas.filter((rep) => favoriteRepublicaIds.includes(rep.id)),
         [allRepublicas, favoriteRepublicaIds]
     );
+
+    const handleSelectRepublica = (rep) => {
+        setSelectedRepublica(rep);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+
+    const handleBackToList = () => {
+        setSelectedRepublica(null);
+    };
 
     const isUfopEmail = useMemo(
         () => registerData.correo.trim().toLowerCase().endsWith("@aluno.ufop.edu.br"),
@@ -498,34 +508,44 @@ export default function HomeView() {
     // ────────────────────────
     const renderRepublicaCard = (rep, isFavorite) => (
         <article key={rep.id} className="republica-card" aria-label={`República ${rep.nombre}`}>
-            <div className="republica-card__image">
-                {rep.fotoSrc ? (
-                    <img
-                        src={rep.fotoSrc}
-                        alt={`Foto da república ${rep.nombre}`}
-                        className="republica-card__img"
-                        loading="lazy"
-                    />
-                ) : (
-                    <div className="republica-card__placeholder" aria-hidden="true">
-                        <span>🏠</span>
-                    </div>
-                )}
-                <span className="republica-card__genero">{rep.generoLabel}</span>
-            </div>
-            <div className="republica-card__body">
-                <h3 className="republica-card__title">{rep.nombre}</h3>
-                <p className="republica-card__direccion">{rep.direccion}</p>
-                <p className="republica-card__descripcion">{rep.descripcion}</p>
-                <div className="republica-card__details">
-                    <span className="republica-card__precio">{rep.precioFormateado}</span>
-                    <span className="republica-card__habitaciones">{rep.habitaciones} quarto{rep.habitaciones !== 1 ? "s" : ""}</span>
+            <button
+                type="button"
+                className="republica-card__link"
+                onClick={() => handleSelectRepublica(rep)}
+                aria-label={`Ver detalles de ${rep.nombre}`}
+            >
+                <div className="republica-card__image">
+                    {rep.fotoSrc ? (
+                        <img
+                            src={rep.fotoSrc}
+                            alt={`Foto da república ${rep.nombre}`}
+                            className="republica-card__img"
+                            loading="lazy"
+                        />
+                    ) : (
+                        <div className="republica-card__placeholder" aria-hidden="true">
+                            <span>🏠</span>
+                        </div>
+                    )}
+                    <span className="republica-card__genero">{rep.generoLabel}</span>
                 </div>
+                <div className="republica-card__body">
+                    <h3 className="republica-card__title">{rep.nombre}</h3>
+                    <p className="republica-card__direccion">{rep.direccion}</p>
+                    <p className="republica-card__descripcion">{rep.descripcion}</p>
+                    <div className="republica-card__details">
+                        <span className="republica-card__precio">{rep.precioFormateado}</span>
+                        <span className="republica-card__habitaciones">{rep.habitaciones} quarto{rep.habitaciones !== 1 ? "s" : ""}</span>
+                    </div>
+                </div>
+            </button>
+            <div className="republica-card__footer">
                 <button
-                    className={`btn ${isFavorite ? "btn--primary" : ""}`}
+                    className={`btn btn--favorite ${isFavorite ? "btn--primary" : ""}`}
                     onClick={() => toggleFavorite(rep)}
                     aria-pressed={isFavorite}
                     aria-label={isFavorite ? `Remover ${rep.nombre} dos favoritos` : `Adicionar ${rep.nombre} aos favoritos`}
+                    type="button"
                 >
                     {isFavorite ? "★ Favorito" : "☆ Favoritar"}
                 </button>
@@ -536,14 +556,58 @@ export default function HomeView() {
     // ────────────────────────
     // B U S C A D O R   V I E W
     // ────────────────────────
-    const renderBuscadorView = () => (
+    const renderRepublicaDetailView = () => (
         <div className="dashboard-page">
-            {/* Buscador + Filtros */}
-            <section className="dashboard-section" id="buscador-grid" aria-labelledby="buscador-heading">
+            <section className="dashboard-section" aria-labelledby="republica-detalle-heading">
                 <div className="dashboard-section__header">
-                    <span className="badge-section">Buscar</span>
-                    <h2 id="buscador-heading">Encontre a república ideal</h2>
+                    <button className="btn btn--secondary" type="button" onClick={handleBackToList} aria-label="Volver a la lista de repúblicas">
+                        ← Volver
+                    </button>
+                    <span className="badge-section" style={{ marginLeft: "1rem" }}>Detalle</span>
+                    <h2 id="republica-detalle-heading">{selectedRepublica?.nombre}</h2>
                 </div>
+
+                <div className="republica-detail-card">
+                    {selectedRepublica?.fotoSrc ? (
+                        <img src={selectedRepublica.fotoSrc} alt={`Foto de ${selectedRepublica.nombre}`} className="republica-detail-card__img" />
+                    ) : (
+                        <div className="republica-detail-card__placeholder">🏠</div>
+                    )}
+
+                    <div className="republica-detail-card__content">
+                        <p><strong>Dirección:</strong> {selectedRepublica?.direccion}</p>
+                        <p><strong>Precio:</strong> {selectedRepublica?.precioFormateado}</p>
+                        <p><strong>Cuartos:</strong> {selectedRepublica?.habitaciones}</p>
+                        <p><strong>Género permitido:</strong> {selectedRepublica?.generoLabel}</p>
+                        <p><strong>Descripción:</strong> {selectedRepublica?.descripcion || "Información de la república próximamente."}</p>
+                        <p><strong>Más detalles:</strong> En construcción. Aquí se mostrará información adicional sobre la república.</p>
+                        <div className="republica-detail-card__actions">
+                            <button type="button" className="btn btn--secondary" aria-label="Contactar por email al decano">
+                                Email
+                            </button>
+                            <button type="button" className="btn btn--secondary" aria-label="Contactar por Whatsapp al decano">
+                                WhatsApp
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    );
+
+    const renderBuscadorView = () => {
+        if (selectedRepublica) {
+            return renderRepublicaDetailView();
+        }
+
+        return (
+            <div className="dashboard-page">
+                {/* Buscador + Filtros */}
+                <section className="dashboard-section" id="buscador-grid" aria-labelledby="buscador-heading">
+                    <div className="dashboard-section__header">
+                        <span className="badge-section">Buscar</span>
+                        <h2 id="buscador-heading">Encontre a república ideal</h2>
+                    </div>
 
                 <div className="filtros-grid" role="search" aria-label="Filtros de búsqueda">
                     <div className="filtro-item">
@@ -649,6 +713,7 @@ export default function HomeView() {
             </div>
         </div>
     );
+};
 
     // ────────────────────────
     // D U E Ñ O   D A S H B O A R D
