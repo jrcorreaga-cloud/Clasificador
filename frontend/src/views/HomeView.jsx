@@ -29,6 +29,7 @@ export default function HomeView() {
     const [status, setStatus] = useState({ type: "idle", message: "" });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const userMenuRef = useRef(null);
+    const userMenuPanelRef = useRef(null);
     const [profileEditMode, setProfileEditMode] = useState(false);
     const [profileFormData, setProfileFormData] = useState({ name: "", phone: "" });
 
@@ -77,6 +78,7 @@ export default function HomeView() {
         }
     }, []);
 
+    // Cerrar menú al hacer clic fuera
     useEffect(() => {
         const handleDocumentClick = (event) => {
             if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
@@ -90,6 +92,21 @@ export default function HomeView() {
             document.removeEventListener("mousedown", handleDocumentClick);
         };
     }, []);
+
+    // Cerrar menú con Escape
+    useEffect(() => {
+        const handleEscape = (event) => {
+            if (event.key === "Escape" && userMenuOpen) {
+                setUserMenuOpen(false);
+                // Devolver foco al trigger
+                const trigger = userMenuRef.current?.querySelector(".user-menu__trigger");
+                trigger?.focus();
+            }
+        };
+
+        document.addEventListener("keydown", handleEscape);
+        return () => document.removeEventListener("keydown", handleEscape);
+    }, [userMenuOpen]);
 
     useEffect(() => {
         const storageKey = `repop-favorites-${authUser?.id ?? "guest"}`;
@@ -477,33 +494,99 @@ export default function HomeView() {
     ];
 
     // ────────────────────────
+    // R E N D E R   C A R D   (reutilizable)
+    // ────────────────────────
+    const renderRepublicaCard = (rep, isFavorite) => (
+        <article key={rep.id} className="republica-card" aria-label={`República ${rep.nombre}`}>
+            <div className="republica-card__image">
+                {rep.fotoSrc ? (
+                    <img
+                        src={rep.fotoSrc}
+                        alt={`Foto da república ${rep.nombre}`}
+                        className="republica-card__img"
+                        loading="lazy"
+                    />
+                ) : (
+                    <div className="republica-card__placeholder" aria-hidden="true">
+                        <span>🏠</span>
+                    </div>
+                )}
+                <span className="republica-card__genero">{rep.generoLabel}</span>
+            </div>
+            <div className="republica-card__body">
+                <h3 className="republica-card__title">{rep.nombre}</h3>
+                <p className="republica-card__direccion">{rep.direccion}</p>
+                <p className="republica-card__descripcion">{rep.descripcion}</p>
+                <div className="republica-card__details">
+                    <span className="republica-card__precio">{rep.precioFormateado}</span>
+                    <span className="republica-card__habitaciones">{rep.habitaciones} quarto{rep.habitaciones !== 1 ? "s" : ""}</span>
+                </div>
+                <button
+                    className={`btn ${isFavorite ? "btn--primary" : ""}`}
+                    onClick={() => toggleFavorite(rep)}
+                    aria-pressed={isFavorite}
+                    aria-label={isFavorite ? `Remover ${rep.nombre} dos favoritos` : `Adicionar ${rep.nombre} aos favoritos`}
+                >
+                    {isFavorite ? "★ Favorito" : "☆ Favoritar"}
+                </button>
+            </div>
+        </article>
+    );
+
+    // ────────────────────────
     // B U S C A D O R   V I E W
     // ────────────────────────
     const renderBuscadorView = () => (
         <div className="dashboard-page">
             {/* Buscador + Filtros */}
-            <section className="dashboard-section" id="buscador-grid">
+            <section className="dashboard-section" id="buscador-grid" aria-labelledby="buscador-heading">
                 <div className="dashboard-section__header">
-                    <span>Buscar</span>
-                    <h2>Encontre a república ideal</h2>
+                    <span className="badge-section">Buscar</span>
+                    <h2 id="buscador-heading">Encontre a república ideal</h2>
                 </div>
 
-                <div className="filtros-grid">
+                <div className="filtros-grid" role="search" aria-label="Filtros de búsqueda">
                     <div className="filtro-item">
-                        <label>Preço mín.</label>
-                        <input type="number" placeholder="R$ 0" value={filters.minPrecio} onChange={(e) => setFilters(f => ({ ...f, minPrecio: e.target.value }))} />
+                        <label htmlFor="filtro-minPrecio">Preço mín.</label>
+                        <input
+                            id="filtro-minPrecio"
+                            className="field__input"
+                            type="number"
+                            placeholder="R$ 0"
+                            value={filters.minPrecio}
+                            onChange={(e) => setFilters(f => ({ ...f, minPrecio: e.target.value }))}
+                        />
                     </div>
                     <div className="filtro-item">
-                        <label>Preço máx.</label>
-                        <input type="number" placeholder="R$ 5000" value={filters.maxPrecio} onChange={(e) => setFilters(f => ({ ...f, maxPrecio: e.target.value }))} />
+                        <label htmlFor="filtro-maxPrecio">Preço máx.</label>
+                        <input
+                            id="filtro-maxPrecio"
+                            className="field__input"
+                            type="number"
+                            placeholder="R$ 5000"
+                            value={filters.maxPrecio}
+                            onChange={(e) => setFilters(f => ({ ...f, maxPrecio: e.target.value }))}
+                        />
                     </div>
                     <div className="filtro-item">
-                        <label>Quartos mín.</label>
-                        <input type="number" placeholder="1" value={filters.habitaciones} onChange={(e) => setFilters(f => ({ ...f, habitaciones: e.target.value }))} />
+                        <label htmlFor="filtro-habitaciones">Quartos mín.</label>
+                        <input
+                            id="filtro-habitaciones"
+                            className="field__input"
+                            type="number"
+                            placeholder="1"
+                            value={filters.habitaciones}
+                            onChange={(e) => setFilters(f => ({ ...f, habitaciones: e.target.value }))}
+                        />
                     </div>
                     <div className="filtro-item">
-                        <label>Gênero</label>
-                        <select value={filters.genero} onChange={(e) => setFilters(f => ({ ...f, genero: e.target.value }))}>
+                        <label htmlFor="filtro-genero">Gênero</label>
+                        <select
+                            id="filtro-genero"
+                            className="field__select"
+                            value={filters.genero}
+                            onChange={(e) => setFilters(f => ({ ...f, genero: e.target.value }))}
+                        >
                             <option value="">Todos</option>
                             <option value="solo hombres">Solo hombres</option>
                             <option value="solo mujeres">Solo mujeres</option>
@@ -511,115 +594,57 @@ export default function HomeView() {
                         </select>
                     </div>
                     <div className="filtro-actions">
-                        <button className="dashboard-action dashboard-action--primary" onClick={aplicarFiltros}>Filtrar</button>
-                        <button className="dashboard-action" onClick={limpiarFiltros}>Limpar</button>
+                        <button className="btn btn--primary" onClick={aplicarFiltros} aria-label="Aplicar filtros">Filtrar</button>
+                        <button className="btn" onClick={limpiarFiltros} aria-label="Limpiar filtros">Limpar</button>
                     </div>
                 </div>
             </section>
 
             {/* Grid de repúblicas */}
-            <section className="dashboard-section">
+            <section className="dashboard-section" aria-labelledby="resultados-heading">
                 <div className="dashboard-section__header">
-                    <span>Resultados</span>
-                    <h2>{republicas.length} república{republicas.length !== 1 ? "s" : ""} encontrada{republicas.length !== 1 ? "s" : ""}</h2>
+                    <span className="badge-section">Resultados</span>
+                    <h2 id="resultados-heading">{republicas.length} república{republicas.length !== 1 ? "s" : ""} encontrada{republicas.length !== 1 ? "s" : ""}</h2>
                 </div>
 
                 {loadingRepublicas ? (
-                    <div className="loading-container">
+                    <div className="spinner" role="status" aria-live="polite">
                         <p>Buscando repúblicas...</p>
                     </div>
                 ) : republicas.length === 0 ? (
-                    <div className="loading-container">
+                    <div className="spinner" role="status">
                         <p>Nenhuma república encontrada com esses filtros.</p>
                     </div>
                 ) : (
-                    <div className="republicas-grid">
-                        {republicas.map((rep) => (
-                            <article key={rep.id} className="republica-card">
-                                <div className="republica-card__image">
-                                    {rep.fotoSrc ? (
-                                        <img
-                                            src={rep.fotoSrc}
-                                            alt={rep.nombre}
-                                            className="republica-card__img"
-                                        />
-                                    ) : (
-                                        <div className="republica-card__placeholder">
-                                            <span>🏠</span>
-                                        </div>
-                                    )}
-                                    <span className="republica-card__genero">{rep.generoLabel}</span>
-                                </div>
-                                <div className="republica-card__body">
-                                    <h3 className="republica-card__title">{rep.nombre}</h3>
-                                    <p className="republica-card__direccion">{rep.direccion}</p>
-                                    <p className="republica-card__descripcion">{rep.descripcion}</p>
-                                    <div className="republica-card__details">
-                                        <span className="republica-card__precio">{rep.precioFormateado}</span>
-                                        <span className="republica-card__habitaciones">{rep.habitaciones} quarto{rep.habitaciones !== 1 ? "s" : ""}</span>
-                                    </div>
-                                    <button className="dashboard-action" onClick={() => toggleFavorite(rep)}>
-                                        {favoriteRepublicaIds.includes(rep.id) ? "★ Favorito" : "☆ Favoritar"}
-                                    </button>
-                                </div>
-                            </article>
-                        ))}
+                    <div className="republicas-grid" role="list" aria-label="Lista de repúblicas">
+                        {republicas.map((rep) => renderRepublicaCard(rep, favoriteRepublicaIds.includes(rep.id)))}
                     </div>
                 )}
             </section>
 
             {/* Favoritos */}
-            <section className="dashboard-section" id="favoritos">
+            <section className="dashboard-section" id="favoritos" aria-labelledby="favoritos-heading">
                 <div className="dashboard-section__header">
-                    <span>Favoritos</span>
-                    <h2>Repúblicas que você salvou</h2>
+                    <span className="badge-section">Favoritos</span>
+                    <h2 id="favoritos-heading">Repúblicas que você salvou</h2>
                 </div>
                 {favoriteRepublicas.length === 0 ? (
-                    <div className="loading-container">
+                    <div className="spinner" role="status">
                         <p>Você ainda não salvou nenhuma república como favorita.</p>
                     </div>
                 ) : (
-                    <div className="republicas-grid">
-                        {favoriteRepublicas.map((rep) => (
-                            <article key={rep.id} className="republica-card">
-                                <div className="republica-card__image">
-                                    {rep.fotoSrc ? (
-                                        <img
-                                            src={rep.fotoSrc}
-                                            alt={rep.nombre}
-                                            className="republica-card__img"
-                                        />
-                                    ) : (
-                                        <div className="republica-card__placeholder">
-                                            <span>🏠</span>
-                                        </div>
-                                    )}
-                                    <span className="republica-card__genero">{rep.generoLabel}</span>
-                                </div>
-                                <div className="republica-card__body">
-                                    <h3 className="republica-card__title">{rep.nombre}</h3>
-                                    <p className="republica-card__direccion">{rep.direccion}</p>
-                                    <p className="republica-card__descripcion">{rep.descripcion}</p>
-                                    <div className="republica-card__details">
-                                        <span className="republica-card__precio">{rep.precioFormateado}</span>
-                                        <span className="republica-card__habitaciones">{rep.habitaciones} quarto{rep.habitaciones !== 1 ? "s" : ""}</span>
-                                    </div>
-                                    <button className="dashboard-action dashboard-action--primary" onClick={() => toggleFavorite(rep)}>
-                                        Remover dos favoritos
-                                    </button>
-                                </div>
-                            </article>
-                        ))}
+                    <div className="republicas-grid" role="list" aria-label="Lista de favoritos">
+                        {favoriteRepublicas.map((rep) => renderRepublicaCard(rep, true))}
                     </div>
                 )}
             </section>
 
             {/* Perfil Seeker */}
-            <section className="dashboard-section dashboard-section--profile" id="meu-perfil">
+            <section className="dashboard-section dashboard-section--profile" id="meu-perfil" aria-labelledby="perfil-heading">
                 {renderProfileSection()}
             </section>
 
-            <div className={`status-box status-box--${status.type}`} aria-live="polite">
+            <div className={`status-box status-box--${status.type}`} role="alert" aria-live="polite" aria-atomic="true">
                 {status.message}
             </div>
         </div>
@@ -634,10 +659,10 @@ export default function HomeView() {
         return (
             <div className="dashboard-page">
                 {/* Resumen */}
-                <section className="dashboard-hero">
+                <section className="dashboard-hero" aria-labelledby="duenho-hero-heading">
                     <div className="dashboard-hero__copy">
                         <span className="dashboard-hero__eyebrow">Painel do Decano</span>
-                        <h1>Gerencie sua república</h1>
+                        <h1 id="duenho-hero-heading">Gerencie sua república</h1>
                         <p>Bem-vindo, {authUser?.name}. Aqui você pode cadastrar, editar e gerenciar sua república em Ouro Preto.</p>
                     </div>
                     <div className="dashboard-hero__stats">
@@ -657,10 +682,10 @@ export default function HomeView() {
                 </section>
 
                 {/* Gestión de la república */}
-                <section className="dashboard-section" id="duenho-republica">
+                <section className="dashboard-section" id="duenho-republica" aria-labelledby="duenho-republica-heading">
                     <div className="dashboard-section__header">
-                        <span>Minha Rep</span>
-                        <h2>{miRepublica ? "Sua república" : "Cadastre sua república"}</h2>
+                        <span className="badge-section">Minha Rep</span>
+                        <h2 id="duenho-republica-heading">{miRepublica ? "Sua república" : "Cadastre sua república"}</h2>
                     </div>
 
                     {miRepublica && !showRepublicaForm ? (
@@ -669,15 +694,20 @@ export default function HomeView() {
                                 <div className="duenho-republica-card__foto">
                                     <img
                                         src={miRepublica.fotoSrc}
-                                        alt={miRepublica.nombre}
+                                        alt={`Foto da república ${miRepublica.nombre}`}
+                                        loading="lazy"
                                     />
                                 </div>
                             )}
                             <div className="duenho-republica-card__header">
                                 <h3>{miRepublica.nombre}</h3>
                                 <div className="duenho-republica-card__actions">
-                                    <button className="profile-btn profile-btn--edit" onClick={() => openEditForm(miRepublica)}>Editar</button>
-                                    <button className="profile-btn profile-btn--danger" onClick={() => handleDeleteRepublica(miRepublica.id)}>Excluir</button>
+                                    <button className="btn btn--small" onClick={() => openEditForm(miRepublica)} aria-label={`Editar república ${miRepublica.nombre}`}>
+                                        ✎ Editar
+                                    </button>
+                                    <button className="btn btn--small btn--danger" onClick={() => handleDeleteRepublica(miRepublica.id)} aria-label={`Excluir república ${miRepublica.nombre}`}>
+                                        Excluir
+                                    </button>
                                 </div>
                             </div>
                             <div className="duenho-republica-card__grid">
@@ -705,27 +735,68 @@ export default function HomeView() {
                     ) : null}
 
                     {showRepublicaForm ? (
-                        <form className="republica-form" onSubmit={handleRepublicaSubmit}>
+                        <form className="republica-form" onSubmit={handleRepublicaSubmit} noValidate>
                             <div className="republica-form__grid">
                                 <label className="republica-form__field republica-form__field--full">
                                     <span>Nome da república *</span>
-                                    <input type="text" name="nombre_republica" value={republicaForm.nombre_republica} onChange={handleRepublicaFormChange} required placeholder="Ex: República Horizonte" />
+                                    <input
+                                        className="field__input"
+                                        type="text"
+                                        name="nombre_republica"
+                                        value={republicaForm.nombre_republica}
+                                        onChange={handleRepublicaFormChange}
+                                        required
+                                        placeholder="Ex: República Horizonte"
+                                    />
                                 </label>
                                 <label className="republica-form__field republica-form__field--full">
                                     <span>Endereço *</span>
-                                    <input type="text" name="direccion" value={republicaForm.direccion} onChange={handleRepublicaFormChange} required placeholder="Rua, número, bairro" />
+                                    <input
+                                        className="field__input"
+                                        type="text"
+                                        name="direccion"
+                                        value={republicaForm.direccion}
+                                        onChange={handleRepublicaFormChange}
+                                        required
+                                        placeholder="Rua, número, bairro"
+                                    />
                                 </label>
                                 <label className="republica-form__field">
                                     <span>Preço (R$) *</span>
-                                    <input type="number" step="0.01" min="1" name="precio" value={republicaForm.precio} onChange={handleRepublicaFormChange} required placeholder="850.00" />
+                                    <input
+                                        className="field__input"
+                                        type="number"
+                                        step="0.01"
+                                        min="1"
+                                        name="precio"
+                                        value={republicaForm.precio}
+                                        onChange={handleRepublicaFormChange}
+                                        required
+                                        placeholder="850.00"
+                                    />
                                 </label>
                                 <label className="republica-form__field">
                                     <span>Nº de quartos *</span>
-                                    <input type="number" min="1" name="num_habitaciones" value={republicaForm.num_habitaciones} onChange={handleRepublicaFormChange} required placeholder="3" />
+                                    <input
+                                        className="field__input"
+                                        type="number"
+                                        min="1"
+                                        name="num_habitaciones"
+                                        value={republicaForm.num_habitaciones}
+                                        onChange={handleRepublicaFormChange}
+                                        required
+                                        placeholder="3"
+                                    />
                                 </label>
                                 <label className="republica-form__field">
                                     <span>Gênero permitido *</span>
-                                    <select name="genero_permitido" value={republicaForm.genero_permitido} onChange={handleRepublicaFormChange} required>
+                                    <select
+                                        className="field__select"
+                                        name="genero_permitido"
+                                        value={republicaForm.genero_permitido}
+                                        onChange={handleRepublicaFormChange}
+                                        required
+                                    >
                                         <option value="mixto">Mixto</option>
                                         <option value="solo hombres">Solo hombres</option>
                                         <option value="solo mujeres">Solo mujeres</option>
@@ -734,6 +805,7 @@ export default function HomeView() {
                                 <label className="republica-form__field republica-form__field--full">
                                     <span>Foto da república (opcional)</span>
                                     <input
+                                        className="field__input"
                                         type="file"
                                         accept="image/jpeg,image/png,image/webp"
                                         onChange={handleFotoFileChange}
@@ -742,74 +814,85 @@ export default function HomeView() {
                                     {fotoPreview && (
                                         <img
                                             src={fotoPreview}
-                                            alt="Preview da foto"
+                                            alt="Preview da foto da república"
                                             style={{
                                                 marginTop: "0.6rem",
                                                 width: "100%",
                                                 maxHeight: "180px",
                                                 objectFit: "cover",
                                                 borderRadius: "8px",
-                                                border: "1px solid rgba(255,255,255,0.15)",
+                                                border: "1px solid var(--color-border)",
                                             }}
                                         />
                                     )}
-                                    <small style={{ opacity: 0.6, marginTop: "0.3rem", display: "block" }}>
+                                    <small className="field__help">
                                         Formatos aceitos: JPG, PNG, WebP · Máx. 5 MB
                                     </small>
                                 </label>
                                 <label className="republica-form__field republica-form__field--full">
                                     <span>Descrição</span>
-                                    <textarea name="descripcion" rows="3" value={republicaForm.descripcion} onChange={handleRepublicaFormChange} placeholder="Descreva sua república..."></textarea>
+                                    <textarea
+                                        className="field__textarea"
+                                        name="descripcion"
+                                        rows="3"
+                                        value={republicaForm.descripcion}
+                                        onChange={handleRepublicaFormChange}
+                                        placeholder="Descreva sua república..."
+                                    ></textarea>
                                 </label>
                             </div>
                             <div className="republica-form__actions">
-                                <button type="submit" className="profile-btn profile-btn--save" disabled={isSubmitting}>
+                                <button type="submit" className="btn btn--primary" disabled={isSubmitting}>
                                     {isSubmitting ? "Salvando..." : editingRepublica ? "Atualizar república" : "Cadastrar república"}
                                 </button>
-                                <button type="button" className="profile-btn profile-btn--cancel" onClick={cancelRepublicaForm}>Cancelar</button>
+                                <button type="button" className="btn" onClick={cancelRepublicaForm}>Cancelar</button>
                             </div>
                         </form>
                     ) : !miRepublica ? (
-                        <div className="loading-container">
+                        <div className="spinner" role="status">
                             <p>Você ainda não cadastrou nenhuma república.</p>
-                            <button className="dashboard-action dashboard-action--primary" onClick={openCreateForm}>Cadastrar minha república</button>
+                            <button className="btn btn--primary" onClick={openCreateForm} style={{ marginTop: "0.5rem" }}>
+                                Cadastrar minha república
+                            </button>
                         </div>
                     ) : null}
 
                     {miRepublica && !showRepublicaForm ? (
-                        <div className="loading-container" style={{ marginTop: "1rem" }}>
-                            <button className="dashboard-action dashboard-action--primary" onClick={openCreateForm}>Cadastrar nova república</button>
+                        <div className="spinner" role="status" style={{ marginTop: "0.5rem" }}>
+                            <button className="btn btn--primary" onClick={openCreateForm}>
+                                Cadastrar nova república
+                            </button>
                         </div>
                     ) : null}
                 </section>
 
                 {/* Gerenciar */}
-                <section className="dashboard-section" id="duenho-favoritos">
+                <section className="dashboard-section" id="duenho-favoritos" aria-labelledby="gerenciar-heading">
                     <div className="dashboard-section__header">
-                        <span>Gerenciar</span>
-                        <h2>Candidatos e mensagens</h2>
+                        <span className="badge-section">Gerenciar</span>
+                        <h2 id="gerenciar-heading">Candidatos e mensagens</h2>
                     </div>
-                    <div className="loading-container">
+                    <div className="spinner" role="status">
                         <p>Nenhum candidato ainda. Quando alguém se interessar pela sua república, aparecerá aqui.</p>
                     </div>
                 </section>
 
-                <section className="dashboard-section" id="duenho-config">
+                <section className="dashboard-section" id="duenho-config" aria-labelledby="config-heading">
                     <div className="dashboard-section__header">
-                        <span>Configurações</span>
-                        <h2>Ajustes da conta</h2>
+                        <span className="badge-section">Configurações</span>
+                        <h2 id="config-heading">Ajustes da conta</h2>
                     </div>
-                    <div className="loading-container">
+                    <div className="spinner" role="status">
                         <p>Funcionalidade em desenvolvimento.</p>
                     </div>
                 </section>
 
                 {/* Perfil */}
-                <section className="dashboard-section dashboard-section--profile" id="duenho-perfil">
+                <section className="dashboard-section dashboard-section--profile" id="duenho-perfil" aria-labelledby="duenho-perfil-heading">
                     {renderProfileSection()}
                 </section>
 
-                <div className={`status-box status-box--${status.type}`} aria-live="polite">
+                <div className={`status-box status-box--${status.type}`} role="alert" aria-live="polite" aria-atomic="true">
                     {status.message}
                 </div>
             </div>
@@ -822,11 +905,11 @@ export default function HomeView() {
     const renderProfileSection = () => (
         <>
             <div className="dashboard-section__header">
-                <span>Meu Perfil</span>
+                <span className="badge-section" id="perfil-heading">Meu Perfil</span>
                 <h2>Informações da conta</h2>
             </div>
 
-            <article className="profile-hero-card">
+            <article className="profile-hero-card" aria-label="Resumo do perfil">
                 <div className="profile-hero-card__left">
                     <div className="profile-hero-card__avatar" aria-hidden="true">
                         {userProfile?.initials || userInitials}
@@ -835,18 +918,18 @@ export default function HomeView() {
                         <strong>{authUser?.name ?? "Usuário logado"}</strong>
                         <span className="profile-hero-card__email">{authUser?.email ?? formData.email}</span>
                         <div className="profile-hero-card__badges">
-                            <span className="profile-badge profile-badge--role">
+                            <span className="badge badge--role">
                                 {userProfile?.roleIcon} {userProfile?.roleLabel || authUser?.role || "Sem função"}
                             </span>
                             {userProfile?.isUfopEmail ? (
-                                <span className="profile-badge profile-badge--ufop">✓ UFOP Verificado</span>
+                                <span className="badge badge--ufop">✓ UFOP Verificado</span>
                             ) : null}
                         </div>
                     </div>
                 </div>
                 <div className="profile-hero-card__right">
                     {!profileEditMode ? (
-                        <button type="button" className="profile-btn profile-btn--edit" onClick={handleProfileEditToggle}>
+                        <button type="button" className="btn btn--small" onClick={handleProfileEditToggle} aria-label="Editar perfil">
                             ✎ Editar
                         </button>
                     ) : null}
@@ -877,22 +960,38 @@ export default function HomeView() {
                     </div>
                 </div>
             ) : (
-                <form className="profile-edit-form" onSubmit={handleProfileSave}>
+                <form className="profile-edit-form" onSubmit={handleProfileSave} noValidate>
                     <div className="profile-edit-form__grid">
-                        <label className="profile-edit-form__field">
-                            <span>Nome completo</span>
-                            <input type="text" name="name" value={profileFormData.name} onChange={handleProfileFormChange} placeholder="Seu nome completo" autoComplete="name" />
+                        <label className="field">
+                            <span className="field__label">Nome completo</span>
+                            <input
+                                className="field__input"
+                                type="text"
+                                name="name"
+                                value={profileFormData.name}
+                                onChange={handleProfileFormChange}
+                                placeholder="Seu nome completo"
+                                autoComplete="name"
+                            />
                         </label>
-                        <label className="profile-edit-form__field">
-                            <span>Telefone</span>
-                            <input type="tel" name="phone" value={profileFormData.phone} onChange={handleProfileFormChange} placeholder="+55 31 99999-9999" autoComplete="tel" />
+                        <label className="field">
+                            <span className="field__label">Telefone</span>
+                            <input
+                                className="field__input"
+                                type="tel"
+                                name="phone"
+                                value={profileFormData.phone}
+                                onChange={handleProfileFormChange}
+                                placeholder="+55 31 99999-9999"
+                                autoComplete="tel"
+                            />
                         </label>
                     </div>
                     <div className="profile-edit-form__actions">
-                        <button type="submit" className="profile-btn profile-btn--save" disabled={isSubmitting}>
+                        <button type="submit" className="btn btn--primary" disabled={isSubmitting}>
                             {isSubmitting ? "Salvando..." : "Salvar alterações"}
                         </button>
-                        <button type="button" className="profile-btn profile-btn--cancel" onClick={handleProfileEditToggle}>Cancelar</button>
+                        <button type="button" className="btn" onClick={handleProfileEditToggle}>Cancelar</button>
                     </div>
                 </form>
             )}
@@ -906,54 +1005,92 @@ export default function HomeView() {
         const navItems = esDuenho ? DUENHO_NAV_ITEMS : BUSCADOR_NAV_ITEMS;
 
         return (
-            <main className="app-shell">
-                <header className="app-header">
-                    <div className="app-header__inner">
-                        <a className="app-header__brand" href="#" onClick={(event) => event.preventDefault()}>
-                            <img className="app-header__logo" src="/images/logo.png" alt="Logo de RepOP" />
-                            <span className="app-header__brand-text">
-                                <strong>RepOP</strong>
-                                <span>Moradias em Ouro Preto</span>
-                            </span>
-                        </a>
+            <>
+                {/* Skip-to-content link for keyboard users */}
+                <a href="#main-content" className="skip-link">
+                    Pular para o conteúdo principal
+                </a>
 
-                        <nav className="app-header__nav" aria-label="Navegación principal">
-                            {navItems.map((item) => (
-                                <button key={item.target} type="button" className="app-header__nav-link" onClick={() => scrollToSection(item.target)}>
-                                    {item.label}
-                                </button>
-                            ))}
-                        </nav>
+                <div className="app-shell">
+                    <header className="app-header" role="banner">
+                        <div className="app-header__inner">
+                            <a className="app-header__brand" href="#" onClick={(event) => event.preventDefault()} aria-label="RepOP - Ir para o início">
+                                <img className="app-header__logo" src="/images/logo.png" alt="" aria-hidden="true" />
+                                <span className="app-header__brand-text">
+                                    <strong>RepOP</strong>
+                                    <span>Moradias em Ouro Preto</span>
+                                </span>
+                            </a>
 
-                        <div className="app-header__actions">
-                            <div className="user-menu" ref={userMenuRef}>
-                                <button type="button" className="user-menu__trigger" aria-haspopup="menu" aria-expanded={userMenuOpen} onClick={() => setUserMenuOpen((current) => !current)}>
-                                    <span className="user-menu__avatar" aria-hidden="true">{userInitials}</span>
-                                    <span className="user-menu__copy">
-                                        <strong>{authUser?.name ?? "Usuário logado"}</strong>
-                                        <span>{esDuenho ? "Decano" : "Buscador"}</span>
-                                    </span>
-                                </button>
+                            <nav className="app-header__nav" aria-label="Navegação principal">
+                                {navItems.map((item) => (
+                                    <button
+                                        key={item.target}
+                                        type="button"
+                                        className="app-header__nav-link"
+                                        onClick={() => scrollToSection(item.target)}
+                                    >
+                                        {item.label}
+                                    </button>
+                                ))}
+                            </nav>
 
-                                {userMenuOpen ? (
-                                    <div className="user-menu__panel" role="menu" aria-label="Menu del usuario">
-                                        {USER_MENU_ITEMS.map((item) => (
-                                            <button key={item.target} type="button" className="user-menu__item" onClick={() => scrollToSection(item.target)} role="menuitem">
-                                                {item.label}
+                            <div className="app-header__actions">
+                                <div className="user-menu" ref={userMenuRef}>
+                                    <button
+                                        type="button"
+                                        className="user-menu__trigger"
+                                        aria-haspopup="true"
+                                        aria-expanded={userMenuOpen}
+                                        aria-controls="user-menu-panel"
+                                        onClick={() => setUserMenuOpen((current) => !current)}
+                                    >
+                                        <span className="user-menu__avatar" aria-hidden="true">{userInitials}</span>
+                                        <span className="user-menu__copy">
+                                            <strong>{authUser?.name ?? "Usuário logado"}</strong>
+                                            <span>{esDuenho ? "Decano" : "Buscador"}</span>
+                                        </span>
+                                    </button>
+
+                                    {userMenuOpen ? (
+                                        <div
+                                            id="user-menu-panel"
+                                            className="user-menu__panel"
+                                            role="menu"
+                                            aria-label="Menu do usuário"
+                                            ref={userMenuPanelRef}
+                                        >
+                                            {USER_MENU_ITEMS.map((item) => (
+                                                <button
+                                                    key={item.target}
+                                                    type="button"
+                                                    className="user-menu__item"
+                                                    onClick={() => scrollToSection(item.target)}
+                                                    role="menuitem"
+                                                >
+                                                    {item.label}
+                                                </button>
+                                            ))}
+                                            <button
+                                                type="button"
+                                                className="user-menu__item user-menu__item--danger"
+                                                onClick={handleLogout}
+                                                role="menuitem"
+                                            >
+                                                Sair
                                             </button>
-                                        ))}
-                                        <button type="button" className="user-menu__item user-menu__item--danger" onClick={handleLogout} role="menuitem">
-                                            Sair
-                                        </button>
-                                    </div>
-                                ) : null}
+                                        </div>
+                                    ) : null}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </header>
+                    </header>
 
-                {esDuenho ? renderDuenhoDashboard() : renderBuscadorView()}
-            </main>
+                    <main id="main-content">
+                        {esDuenho ? renderDuenhoDashboard() : renderBuscadorView()}
+                    </main>
+                </div>
+            </>
         );
     };
 
@@ -964,94 +1101,156 @@ export default function HomeView() {
         authUser ? (
             renderAuthShell()
         ) : (
-            <main className="login-shell">
-                <section className="login-hero">
-                    <div className="hero-copy">
-                        <div className="hero-title-row">
-                            <h1>RepOP - Moradias em Ouro Preto</h1>
-                            <img className="hero-logo" src="/images/logo.png" alt="Logo de RepOP" />
-                        </div>
-                    </div>
-                </section>
+            <>
+                <a href="#login-content" className="skip-link">
+                    Pular para o conteúdo
+                </a>
 
-                <section className="login-card">
-                    <div key={mode} className={`auth-view auth-view--${mode}`}>
-                        <div className="login-card__header">
-                            <h2>{mode === "login" ? "Iniciar sesión" : "Crear cuenta"}</h2>
+                <main className="login-shell" id="login-content">
+                    <section className="login-hero">
+                        <div className="hero-copy">
+                            <div className="hero-title-row">
+                                <h1>RepOP - Moradias em Ouro Preto</h1>
+                                <img className="hero-logo" src="/images/logo.png" alt="Logo do RepOP - Moradias em Ouro Preto" />
+                            </div>
                         </div>
+                    </section>
 
-                        {mode === "login" ? (
-                            <form className="login-form" onSubmit={handleSubmit}>
-                                <label>
-                                    Correo electrónico
-                                    <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="tu@correo.com" autoComplete="email" />
-                                </label>
-                                <label>
-                                    Contraseña
-                                    <input type="password" name="password" value={formData.password} onChange={handleChange} placeholder="••••••••" autoComplete="current-password" />
-                                </label>
-                                <button type="submit" disabled={isSubmitting}>
-                                    {isSubmitting ? "Ingresando..." : "Entrar"}
-                                </button>
-                                <button type="button" className="login-form__secondary" onClick={() => setMode("register")}>
-                                    Registrarme
-                                </button>
-                            </form>
-                        ) : (
-                            <form className="login-form login-form--register" onSubmit={handleRegisterSubmit}>
-                                <label>
-                                    Nombre completo
-                                    <input type="text" name="nombre" value={registerData.nombre} onChange={handleRegisterChange} placeholder="Tu nombre completo" autoComplete="name" />
-                                </label>
-                                <label>
-                                    Correo electrónico
-                                    <input type="email" name="correo" value={registerData.correo} onChange={handleRegisterChange} placeholder="tu@correo.com" autoComplete="email" />
-                                    {isUfopEmail ? (
-                                        <span className="ufop-badge">Correo UFOP verificado</span>
-                                    ) : (
-                                        <span className="ufop-badge ufop-badge--subtle">Usa @aluno.ufop.edu.br para verificación UFOP</span>
-                                    )}
-                                </label>
-                                <label>
-                                    Teléfono (opcional)
-                                    <input type="tel" name="telefono" value={registerData.telefono} onChange={handleRegisterChange} placeholder="+55 31 99999-9999" autoComplete="tel" />
-                                </label>
-                                <fieldset className="rol-fieldset">
-                                    <legend>Rol</legend>
-                                    <div className="rol-options">
-                                        <label>
-                                            <input type="radio" name="rol" value="dueño" checked={registerData.rol === "dueño"} onChange={handleRegisterChange} />
-                                            Dueño (quiero alquilar)
+                    <section className="login-card" aria-label={mode === "login" ? "Formulário de login" : "Formulário de registro"}>
+                        <div key={mode} className={`auth-view auth-view--${mode}`}>
+                            <div className="login-card__header">
+                                <h2>{mode === "login" ? "Iniciar sesión" : "Crear cuenta"}</h2>
+                            </div>
+
+                            {mode === "login" ? (
+                                <form className="login-form" onSubmit={handleSubmit} noValidate>
+                                    <label className="field">
+                                        <span className="field__label">Correo electrónico</span>
+                                        <input
+                                            className="field__input"
+                                            type="email"
+                                            name="email"
+                                            value={formData.email}
+                                            onChange={handleChange}
+                                            placeholder="tu@correo.com"
+                                            autoComplete="email"
+                                        />
+                                    </label>
+                                    <label className="field">
+                                        <span className="field__label">Contraseña</span>
+                                        <input
+                                            className="field__input"
+                                            type="password"
+                                            name="password"
+                                            value={formData.password}
+                                            onChange={handleChange}
+                                            placeholder="••••••••"
+                                            autoComplete="current-password"
+                                        />
+                                    </label>
+                                    <button type="submit" className="btn btn--primary btn--full" disabled={isSubmitting}>
+                                        {isSubmitting ? "Ingresando..." : "Entrar"}
+                                    </button>
+                                    <button type="button" className="btn btn--full" onClick={() => setMode("register")}>
+                                        Registrarme
+                                    </button>
+                                </form>
+                            ) : (
+                                <form className="login-form login-form--register" onSubmit={handleRegisterSubmit} noValidate>
+                                    <label className="field">
+                                        <span className="field__label">Nombre completo</span>
+                                        <input
+                                            className="field__input"
+                                            type="text"
+                                            name="nombre"
+                                            value={registerData.nombre}
+                                            onChange={handleRegisterChange}
+                                            placeholder="Tu nombre completo"
+                                            autoComplete="name"
+                                        />
+                                    </label>
+                                    <label className="field">
+                                        <span className="field__label">Correo electrónico</span>
+                                        <input
+                                            className="field__input"
+                                            type="email"
+                                            name="correo"
+                                            value={registerData.correo}
+                                            onChange={handleRegisterChange}
+                                            placeholder="tu@correo.com"
+                                            autoComplete="email"
+                                        />
+                                        {isUfopEmail ? (
+                                            <span className="badge badge--ufop">Correo UFOP verificado</span>
+                                        ) : (
+                                            <span className="badge badge--subtle">Usa @aluno.ufop.edu.br para verificación UFOP</span>
+                                        )}
+                                    </label>
+                                    <label className="field">
+                                        <span className="field__label">Teléfono (opcional)</span>
+                                        <input
+                                            className="field__input"
+                                            type="tel"
+                                            name="telefono"
+                                            value={registerData.telefono}
+                                            onChange={handleRegisterChange}
+                                            placeholder="+55 31 99999-9999"
+                                            autoComplete="tel"
+                                        />
+                                    </label>
+                                    <fieldset className="rol-fieldset">
+                                        <legend>Rol</legend>
+                                        <div className="rol-options">
+                                            <label>
+                                                <input type="radio" name="rol" value="dueño" checked={registerData.rol === "dueño"} onChange={handleRegisterChange} />
+                                                Dueño (quiero alquilar)
+                                            </label>
+                                            <label>
+                                                <input type="radio" name="rol" value="buscador" checked={registerData.rol === "buscador"} onChange={handleRegisterChange} />
+                                                Buscador (quiero alquilar)
+                                            </label>
+                                        </div>
+                                    </fieldset>
+                                    <div className="login-form__grid">
+                                        <label className="field">
+                                            <span className="field__label">Contraseña</span>
+                                            <input
+                                                className="field__input"
+                                                type="password"
+                                                name="contrasenia"
+                                                value={registerData.contrasenia}
+                                                onChange={handleRegisterChange}
+                                                placeholder="••••••••"
+                                                autoComplete="new-password"
+                                            />
                                         </label>
-                                        <label>
-                                            <input type="radio" name="rol" value="buscador" checked={registerData.rol === "buscador"} onChange={handleRegisterChange} />
-                                            Buscador (quiero alquilar)
+                                        <label className="field">
+                                            <span className="field__label">Confirmar contraseña</span>
+                                            <input
+                                                className="field__input"
+                                                type="password"
+                                                name="confirmPassword"
+                                                value={registerData.confirmPassword}
+                                                onChange={handleRegisterChange}
+                                                placeholder="••••••••"
+                                                autoComplete="new-password"
+                                            />
                                         </label>
                                     </div>
-                                </fieldset>
-                                <div className="login-form__grid">
-                                    <label>
-                                        Contraseña
-                                        <input type="password" name="contrasenia" value={registerData.contrasenia} onChange={handleRegisterChange} placeholder="••••••••" autoComplete="new-password" />
-                                    </label>
-                                    <label>
-                                        Confirmar contraseña
-                                        <input type="password" name="confirmPassword" value={registerData.confirmPassword} onChange={handleRegisterChange} placeholder="••••••••" autoComplete="new-password" />
-                                    </label>
-                                </div>
-                                <button type="submit" disabled={isSubmitting}>
-                                    {isSubmitting ? "Registrando..." : "Crear cuenta"}
-                                </button>
-                                <button type="button" className="login-form__secondary" onClick={() => setMode("login")}>Ya tengo cuenta</button>
-                            </form>
-                        )}
-                    </div>
+                                    <button type="submit" className="btn btn--primary btn--full" disabled={isSubmitting}>
+                                        {isSubmitting ? "Registrando..." : "Crear cuenta"}
+                                    </button>
+                                    <button type="button" className="btn btn--full" onClick={() => setMode("login")}>Ya tengo cuenta</button>
+                                </form>
+                            )}
+                        </div>
 
-                    <div className={`status-box status-box--${status.type}`} aria-live="polite">
-                        {status.message}
-                    </div>
-                </section>
-            </main>
+                        <div className={`status-box status-box--${status.type}`} role="alert" aria-live="polite" aria-atomic="true">
+                            {status.message}
+                        </div>
+                    </section>
+                </main>
+            </>
         )
     );
 }
