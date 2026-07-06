@@ -139,3 +139,17 @@ export const deleteRepublica = async (id) => {
         handleAxiosError(err);
     }
 };
+
+/** Sube una foto a una república. Recibe el ID y un objeto File. */
+export const uploadRepublicaFoto = async (id, file) => {
+    try {
+        const formData = new FormData();
+        formData.append("foto", file);
+        const res = await api.post(`/api/republicas/${id}/foto`, formData, {
+            headers: { "Content-Type": "multipart/form-data" },
+        });
+        return res.data;
+    } catch (err) {
+        handleAxiosError(err);
+    }
+};

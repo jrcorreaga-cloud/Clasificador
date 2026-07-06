@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { loginDemo, checkStatus, registerUser, setAuthToken, clearAuthToken, getRepublicas, createRepublica, updateRepublica, deleteRepublica } from "../controllers/apiController";
+import { loginDemo, checkStatus, registerUser, setAuthToken, clearAuthToken, getRepublicas, createRepublica, updateRepublica, deleteRepublica, uploadRepublicaFoto } from "../controllers/apiController";
 import { UserProfile } from "../models/userProfileModel";
 import { Republica } from "../models/republicaModel";
 import "../styles/login.css";
@@ -49,8 +49,9 @@ export default function HomeView() {
         num_habitaciones: "",
         genero_permitido: "mixto",
         descripcion: "",
-        foto_url: "",
     });
+    const [fotoFile, setFotoFile] = useState(null);
+    const [fotoPreview, setFotoPreview] = useState(null);
 
     useEffect(() => {
         const checkBackend = async () => {
@@ -352,6 +353,13 @@ export default function HomeView() {
         setRepublicaForm((prev) => ({ ...prev, [name]: value }));
     };
 
+    const handleFotoFileChange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        setFotoFile(file);
+        setFotoPreview(URL.createObjectURL(file));
+    };
+
     const openCreateForm = () => {
         setEditingRepublica(null);
         setRepublicaForm({
@@ -361,8 +369,9 @@ export default function HomeView() {
             num_habitaciones: "",
             genero_permitido: "mixto",
             descripcion: "",
-            foto_url: "",
         });
+        setFotoFile(null);
+        setFotoPreview(null);
         setShowRepublicaForm(true);
     };
 
@@ -375,8 +384,9 @@ export default function HomeView() {
             num_habitaciones: String(rep.habitaciones),
             genero_permitido: rep.genero,
             descripcion: rep.descripcion || "",
-            foto_url: rep.fotoUrl || "",
         });
+        setFotoFile(null);
+        setFotoPreview(rep.fotoUrl || null);
         setShowRepublicaForm(true);
     };
 
@@ -391,19 +401,27 @@ export default function HomeView() {
             num_habitaciones: Number(republicaForm.num_habitaciones),
             genero_permitido: republicaForm.genero_permitido,
             descripcion: republicaForm.descripcion || null,
-            foto_url: republicaForm.foto_url || null,
         };
 
         try {
+            let savedRepublica;
             if (editingRepublica) {
-                await updateRepublica(editingRepublica.id, data);
+                savedRepublica = await updateRepublica(editingRepublica.id, data);
                 setStatus({ type: "success", message: "República actualizada correctamente." });
             } else {
-                await createRepublica(data);
+                savedRepublica = await createRepublica(data);
                 setStatus({ type: "success", message: "República creada correctamente." });
             }
+
+            // Si el dueño seleccionó una foto, la subimos ahora
+            if (fotoFile && savedRepublica?.id_republica) {
+                await uploadRepublicaFoto(savedRepublica.id_republica, fotoFile);
+            }
+
             setShowRepublicaForm(false);
             setEditingRepublica(null);
+            setFotoFile(null);
+            setFotoPreview(null);
             cargarRepublicas();
         } catch (error) {
             setStatus({ type: "error", message: error.message });
@@ -519,9 +537,17 @@ export default function HomeView() {
                         {republicas.map((rep) => (
                             <article key={rep.id} className="republica-card">
                                 <div className="republica-card__image">
-                                    <div className="republica-card__placeholder">
-                                        <span>🏠</span>
-                                    </div>
+                                    {rep.fotoSrc ? (
+                                        <img
+                                            src={rep.fotoSrc}
+                                            alt={rep.nombre}
+                                            className="republica-card__img"
+                                        />
+                                    ) : (
+                                        <div className="republica-card__placeholder">
+                                            <span>🏠</span>
+                                        </div>
+                                    )}
                                     <span className="republica-card__genero">{rep.generoLabel}</span>
                                 </div>
                                 <div className="republica-card__body">
@@ -557,9 +583,17 @@ export default function HomeView() {
                         {favoriteRepublicas.map((rep) => (
                             <article key={rep.id} className="republica-card">
                                 <div className="republica-card__image">
-                                    <div className="republica-card__placeholder">
-                                        <span>🏠</span>
-                                    </div>
+                                    {rep.fotoSrc ? (
+                                        <img
+                                            src={rep.fotoSrc}
+                                            alt={rep.nombre}
+                                            className="republica-card__img"
+                                        />
+                                    ) : (
+                                        <div className="republica-card__placeholder">
+                                            <span>🏠</span>
+                                        </div>
+                                    )}
                                     <span className="republica-card__genero">{rep.generoLabel}</span>
                                 </div>
                                 <div className="republica-card__body">
@@ -631,6 +665,14 @@ export default function HomeView() {
 
                     {miRepublica && !showRepublicaForm ? (
                         <div className="duenho-republica-card">
+                            {miRepublica.fotoSrc && (
+                                <div className="duenho-republica-card__foto">
+                                    <img
+                                        src={miRepublica.fotoSrc}
+                                        alt={miRepublica.nombre}
+                                    />
+                                </div>
+                            )}
                             <div className="duenho-republica-card__header">
                                 <h3>{miRepublica.nombre}</h3>
                                 <div className="duenho-republica-card__actions">
@@ -689,9 +731,31 @@ export default function HomeView() {
                                         <option value="solo mujeres">Solo mujeres</option>
                                     </select>
                                 </label>
-                                <label className="republica-form__field">
-                                    <span>URL da foto (opcional)</span>
-                                    <input type="url" name="foto_url" value={republicaForm.foto_url} onChange={handleRepublicaFormChange} placeholder="https://..." />
+                                <label className="republica-form__field republica-form__field--full">
+                                    <span>Foto da república (opcional)</span>
+                                    <input
+                                        type="file"
+                                        accept="image/jpeg,image/png,image/webp"
+                                        onChange={handleFotoFileChange}
+                                        style={{ padding: "0.4rem 0" }}
+                                    />
+                                    {fotoPreview && (
+                                        <img
+                                            src={fotoPreview}
+                                            alt="Preview da foto"
+                                            style={{
+                                                marginTop: "0.6rem",
+                                                width: "100%",
+                                                maxHeight: "180px",
+                                                objectFit: "cover",
+                                                borderRadius: "8px",
+                                                border: "1px solid rgba(255,255,255,0.15)",
+                                            }}
+                                        />
+                                    )}
+                                    <small style={{ opacity: 0.6, marginTop: "0.3rem", display: "block" }}>
+                                        Formatos aceitos: JPG, PNG, WebP · Máx. 5 MB
+                                    </small>
                                 </label>
                                 <label className="republica-form__field republica-form__field--full">
                                     <span>Descrição</span>
