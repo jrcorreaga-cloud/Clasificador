@@ -52,10 +52,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Servimos las imágenes subidas localmente desde /static/uploads/
+# Servimos las imágenes subidas localmente desde /static/uploads/ solo si la carpeta existe
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static", "uploads")
-os.makedirs(STATIC_DIR, exist_ok=True)
-app.mount("/static/uploads", StaticFiles(directory=STATIC_DIR), name="uploads")
+if os.path.exists(STATIC_DIR):
+    app.mount("/static/uploads", StaticFiles(directory=STATIC_DIR), name="uploads")
 
 # Conectamos nuestras rutas
 app.include_router(auth_router, prefix="/api/auth", tags=["Auth"])
