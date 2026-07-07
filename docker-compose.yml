@@ -8,6 +8,9 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URL=mysql+pymysql://republica_dev:Republica_2026!@db:3306/republicas_db
+    env_file:
+      - ./backend/.env
+
     depends_on:
       - db
 

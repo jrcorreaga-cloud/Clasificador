@@ -1,5 +1,7 @@
 import os
 import uuid
+import base64
+import httpx
 from fastapi import UploadFile, HTTPException, status
 
 # Tipos de imagen permitidos
@@ -10,6 +12,10 @@ STORAGE_BACKEND = os.getenv("STORAGE_BACKEND", "local")
 
 # Directorio local donde se guardarán las imágenes
 LOCAL_UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "static", "uploads")
+
+# Configuración ImgBB
+IMGBB_API_KEY = os.getenv("IMGBB_API_KEY", "")
+IMGBB_API_URL = "https://api.imgbb.com/1/upload"
 
 
 def _validate_image(file: UploadFile, content: bytes):
@@ -50,61 +56,60 @@ def _upload_local(file: UploadFile, content: bytes) -> str:
     return f"/static/uploads/{filename}"
 
 
-def _upload_s3(file: UploadFile, content: bytes) -> str:
-    """Sube el archivo a Amazon S3 y retorna la URL pública."""
-    try:
-        import boto3
-        from botocore.exceptions import BotoCoreError, ClientError
-    except ImportError:
+def _upload_imgbb(file: UploadFile, content: bytes) -> str:
+    """
+    Sube la imagen a ImgBB (gratuito, sin almacenamiento en el backend).
+    Retorna la URL directa de la imagen.
+    """
+    if not IMGBB_API_KEY:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="boto3 no está instalado. Agrega 'boto3' a requirements.txt."
+            detail="IMGBB_API_KEY no configurada. Obtén una gratis en https://api.imgbb.com/"
         )
 
-    bucket = os.getenv("AWS_S3_BUCKET")
-    region = os.getenv("AWS_REGION", "us-east-1")
-
-    if not bucket:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Variable de entorno AWS_S3_BUCKET no configurada."
-        )
-
-    ext = _get_extension(file.content_type)
-    filename = f"republicas/{uuid.uuid4().hex}{ext}"
+    # Codificar la imagen en base64
+    img_base64 = base64.b64encode(content).decode("utf-8")
 
     try:
-        s3 = boto3.client(
-            "s3",
-            region_name=region,
-            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-            aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-        )
-        s3.put_object(
-            Bucket=bucket,
-            Key=filename,
-            Body=content,
-            ContentType=file.content_type,
-        )
-    except Exception as e:
+        with httpx.Client(timeout=30) as client:
+            response = client.post(
+                IMGBB_API_URL,
+                data={
+                    "key": IMGBB_API_KEY,
+                    "image": img_base64,
+                },
+            )
+            data = response.json()
+
+            if not data.get("success"):
+                error_msg = data.get("error", {}).get("message", "Error desconocido de ImgBB")
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail=f"Error al subir imagen a ImgBB: {error_msg}"
+                )
+
+            # Extraer la URL directa de la imagen
+            url_directa = data["data"]["url"]
+            return url_directa
+
+    except httpx.RequestError as e:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Error al subir imagen a S3: {str(e)}"
+            detail=f"Error de conexión con ImgBB: {str(e)}"
         )
-
-    return f"https://{bucket}.s3.{region}.amazonaws.com/{filename}"
 
 
 async def upload_image(file: UploadFile) -> str:
     """
     Punto de entrada principal. Valida el archivo y lo sube según
-    la variable de entorno STORAGE_BACKEND ('local' o 's3').
+    la variable de entorno STORAGE_BACKEND ('local' o 'imgbb').
     Retorna la URL final donde quedó guardada la imagen.
+    Con 'imgbb' la imagen nunca toca el disco del backend.
     """
     content = await file.read()
     _validate_image(file, content)
 
-    if STORAGE_BACKEND == "s3":
-        return _upload_s3(file, content)
+    if STORAGE_BACKEND == "imgbb":
+        return _upload_imgbb(file, content)
     else:
         return _upload_local(file, content)
