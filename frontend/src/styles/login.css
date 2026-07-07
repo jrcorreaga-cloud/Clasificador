@@ -484,6 +484,50 @@ textarea {
   color: var(--color-error-text);
 }
 
+.error-boundary {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: var(--color-bg);
+}
+
+.error-boundary__panel {
+  width: 100%;
+  max-width: 540px;
+  border: 2px solid var(--color-error-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-card-alt);
+  padding: 2rem;
+  box-shadow: var(--shadow-md);
+}
+
+.error-boundary__panel h1 {
+  margin-top: 0;
+  color: var(--color-text);
+}
+
+.error-boundary__panel p {
+  margin-top: 0.75rem;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+.error-boundary__message {
+  margin: 1rem 0;
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  background: #fff5f5;
+  color: var(--color-error-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.error-boundary .btn {
+  width: auto;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    LAYOUT GENERAL (Mobile First)
    ═══════════════════════════════════════════════════════════════════════════ */

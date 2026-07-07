@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { loginDemo, checkStatus, registerUser, setAuthToken, clearAuthToken, getRepublicas, createRepublica, updateRepublica, deleteRepublica, uploadRepublicaFoto } from "../controllers/apiController";
 import { UserProfile } from "../models/userProfileModel";
 import { Republica } from "../models/republicaModel";
+import LoadingIndicator from "../components/LoadingIndicator.jsx";
 import "../styles/login.css";
 
 const USER_MENU_ITEMS = [
@@ -672,11 +673,9 @@ export default function HomeView() {
                 </div>
 
                 {loadingRepublicas ? (
-                    <div className="spinner" role="status" aria-live="polite">
-                        <p>Buscando repúblicas...</p>
-                    </div>
+                    <LoadingIndicator message="Buscando repúblicas..." />
                 ) : republicas.length === 0 ? (
-                    <div className="spinner" role="status">
+                    <div className="empty-state" role="status" aria-live="polite">
                         <p>Nenhuma república encontrada com esses filtros.</p>
                     </div>
                 ) : (
@@ -693,7 +692,7 @@ export default function HomeView() {
                     <h2 id="favoritos-heading">Repúblicas que você salvou</h2>
                 </div>
                 {favoriteRepublicas.length === 0 ? (
-                    <div className="spinner" role="status">
+                    <div className="empty-state" role="status">
                         <p>Você ainda não salvou nenhuma república como favorita.</p>
                     </div>
                 ) : (
@@ -753,7 +752,9 @@ export default function HomeView() {
                         <h2 id="duenho-republica-heading">{miRepublica ? "Sua república" : "Cadastre sua república"}</h2>
                     </div>
 
-                    {miRepublica && !showRepublicaForm ? (
+                    {loadingRepublicas ? (
+                        <LoadingIndicator message="Carregando informação da república..." />
+                    ) : miRepublica && !showRepublicaForm ? (
                         <div className="duenho-republica-card">
                             {miRepublica.fotoSrc && (
                                 <div className="duenho-republica-card__foto">
