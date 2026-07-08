@@ -73,3 +73,12 @@ npm run dev
 ```
 
 _A interface estará disponível em: `http://localhost:5173`_
+
+---
+
+## 👥 Integrantes
+
+- César Eduardo Paredes Torres
+- Jordan Rivaldo Correa Garcia
+- Ryan Alessandro Lázaro Urtecho
+- Tommy Rodriguez Zavaleta
