@@ -11,7 +11,7 @@ class Republica(Base):
     direccion = Column(String(255), nullable=False)
     precio = Column(Numeric(10, 2), nullable=False, index=True)
     num_habitaciones = Column(Integer, nullable=False, index=True)
-    genero_permitido = Column(Enum('solo hombres', 'solo mujeres', 'mixto'), nullable=False, index=True)
+    genero_permitido = Column(Enum('solo hombres', 'solo mujeres', 'mixto', name='genero_enum'), nullable=False, index=True)
     foto_url = Column(String(255), nullable=True)
     descripcion = Column(Text, nullable=True)
     fecha_creacion = Column(DateTime, server_default=func.current_timestamp())
