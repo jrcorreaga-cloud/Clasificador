@@ -18,3 +18,6 @@ class Republica(Base):
 
     # Relación con usuario (dueño)
     duenho = relationship("Usuario")
+
+    # Relación con fotos
+    fotos = relationship("RepublicaFoto", back_populates="republica", cascade="all, delete-orphan")

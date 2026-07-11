@@ -254,7 +254,7 @@ export default function DashboardView() {
                             setStatus={setStatus}
                         />
                     ) : !miRepublica ? (
-                        <div className="spinner">
+                        <div className="empty-state">
                             <button className="btn btn--primary" onClick={() => setShowRepublicaForm(true)}>Cadastrar minha república</button>
                         </div>
                     ) : null}
@@ -265,7 +265,7 @@ export default function DashboardView() {
                         <span className="badge-section">Gerenciar</span>
                         <h2>Candidatos e mensagens</h2>
                     </div>
-                    <div className="spinner"><p>Nenhum candidato ainda.</p></div>
+                    <div className="empty-state"><p>Nenhum candidato ainda.</p></div>
                 </section>
 
                 {status.message && (

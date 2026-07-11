@@ -34,6 +34,10 @@ export function clearAuthToken() {
 const handleAxiosError = (err) => {
     if (err.response && err.response.data) {
         const data = err.response.data;
+        if (Array.isArray(data.detail)) {
+            const msg = data.detail.map(d => `${d.loc.join('.')}: ${d.msg}`).join(', ');
+            throw new Error(msg);
+        }
         throw new Error(data.detail || data.message || JSON.stringify(data));
     }
     throw err;
@@ -94,7 +98,7 @@ export const getRepublicas = async (filters = {}) => {
         if (filters.maxPrecio) params.max_precio = filters.maxPrecio;
         if (filters.habitaciones) params.habitaciones = filters.habitaciones;
         if (filters.genero) params.genero = filters.genero;
-        const res = await api.get("/api/republicas", { params });
+        const res = await api.get("/api/republicas/", { params });
         return res.data;
     } catch (err) {
         handleAxiosError(err);
@@ -114,7 +118,7 @@ export const getRepublica = async (id) => {
 /** Crea una nueva república (solo dueños) */
 export const createRepublica = async (republicaData) => {
     try {
-        const res = await api.post("/api/republicas", republicaData);
+        const res = await api.post("/api/republicas/", republicaData);
         return res.data;
     } catch (err) {
         handleAxiosError(err);
@@ -140,11 +144,12 @@ export const deleteRepublica = async (id) => {
     }
 };
 
-/** Sube una foto a una república. Recibe el ID y un objeto File. */
-export const uploadRepublicaFoto = async (id, file) => {
+/** Sube una foto a una república. Recibe el ID, un objeto File y la categoría. */
+export const uploadRepublicaFoto = async (id, file, categoria = 'casa') => {
     try {
         const formData = new FormData();
         formData.append("foto", file);
+        formData.append("categoria", categoria);
         const res = await api.post(`/api/republicas/${id}/foto`, formData, {
             headers: { "Content-Type": "multipart/form-data" },
         });

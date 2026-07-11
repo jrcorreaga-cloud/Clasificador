@@ -10,6 +10,7 @@ from app.controllers.republica_controller import router as republica_router
 from app.core.database import get_db, engine, Base
 from app.models.usuario_model import Usuario
 from app.models.republica_model import Republica
+from app.models.republica_foto_model import RepublicaFoto
 
 app = FastAPI(
     title="RepOP API",
