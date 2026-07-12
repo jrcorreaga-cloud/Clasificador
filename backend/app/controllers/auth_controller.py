@@ -64,3 +64,21 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
         },
         message="Login exitoso"
     )
+
+from fastapi.security import OAuth2PasswordRequestForm
+
+@router.post("/swagger-login", summary="Login exclusivo para Swagger UI")
+def swagger_login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    # Swagger envía el email en el campo "username"
+    user = db.query(Usuario).filter(Usuario.correo == form_data.username).first()
+    
+    if not user or not verify_password(form_data.password, user.contrasenia):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, 
+            detail="Credenciales inválidas"
+        )
+
+    access_token = create_access_token(data={"sub": user.correo})
+    
+    # Swagger espera que se retorne exactamente access_token y token_type
+    return {"access_token": access_token, "token_type": "bearer"}
