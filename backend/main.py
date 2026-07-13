@@ -10,6 +10,8 @@ from app.controllers.republica_controller import router as republica_router
 from app.core.database import get_db, engine, Base
 from app.models.usuario_model import Usuario
 from app.models.republica_model import Republica
+from app.models.resena_model import Resena
+from app.models.favorito_model import Favorito
 
 app = FastAPI(
     title="RepOP API",
@@ -60,6 +62,10 @@ if os.path.exists(STATIC_DIR):
 # Conectamos nuestras rutas
 app.include_router(auth_router, prefix="/api/auth", tags=["Auth"])
 app.include_router(republica_router, prefix="/api")
+from app.controllers.resena_controller import router as resena_router
+app.include_router(resena_router, prefix="/api")
+from app.controllers.favorito_controller import router as favorito_router
+app.include_router(favorito_router, prefix="/api")
 
 Base.metadata.create_all(bind=engine)
 

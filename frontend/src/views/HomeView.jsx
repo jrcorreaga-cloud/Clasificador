@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { loginDemo, checkStatus, registerUser, setAuthToken, clearAuthToken, getRepublicas, createRepublica, updateRepublica, deleteRepublica, uploadRepublicaFoto } from "../controllers/apiController";
+import { useNavigate, useLocation } from "react-router-dom";
+import { loginDemo, checkStatus, registerUser, setAuthToken, clearAuthToken, getRepublicas, createRepublica, updateRepublica, deleteRepublica, uploadRepublicaFoto, getResenas, createResena, updateMiResena, deleteMiResena, getFavoritos, addFavorito, removeFavorito } from "../controllers/apiController";
 import { UserProfile } from "../models/userProfileModel";
 import { Republica } from "../models/republicaModel";
 import LoadingIndicator from "../components/LoadingIndicator.jsx";
@@ -12,6 +13,8 @@ const USER_MENU_ITEMS = [
 ];
 
 export default function HomeView() {
+    const navigate = useNavigate();
+    const location = useLocation();
     const [mode, setMode] = useState("login");
     const [authUser, setAuthUser] = useState(null);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -55,6 +58,13 @@ export default function HomeView() {
     });
     const [fotoFile, setFotoFile] = useState(null);
     const [fotoPreview, setFotoPreview] = useState(null);
+
+    // Reseñas states
+    const [resenasData, setResenasData] = useState({ resenas: [], promedio: null, total: 0 });
+    const [loadingResenas, setLoadingResenas] = useState(false);
+    const [nuevaResena, setNuevaResena] = useState({ calificacion: 5, comentario: "" });
+    const [editandoResena, setEditandoResena] = useState(false);
+    const [miResena, setMiResena] = useState(null);
 
     useEffect(() => {
         const checkBackend = async () => {
@@ -110,26 +120,22 @@ export default function HomeView() {
         return () => document.removeEventListener("keydown", handleEscape);
     }, [userMenuOpen]);
 
+    // Cargar favoritos desde la API cuando el usuario inicia sesión
     useEffect(() => {
-        const storageKey = `repop-favorites-${authUser?.id ?? "guest"}`;
-        try {
-            const saved = localStorage.getItem(storageKey);
-            if (saved) {
-                setFavoriteRepublicaIds(JSON.parse(saved));
-            } else {
-                setFavoriteRepublicaIds([]);
-            }
-        } catch (e) {
+        if (authUser) {
+            const loadFavoritos = async () => {
+                try {
+                    const ids = await getFavoritos();
+                    setFavoriteRepublicaIds(ids);
+                } catch (e) {
+                    setFavoriteRepublicaIds([]);
+                }
+            };
+            loadFavoritos();
+        } else {
             setFavoriteRepublicaIds([]);
         }
     }, [authUser?.id]);
-
-    useEffect(() => {
-        const storageKey = `repop-favorites-${authUser?.id ?? "guest"}`;
-        try {
-            localStorage.setItem(storageKey, JSON.stringify(favoriteRepublicaIds));
-        } catch (e) {}
-    }, [favoriteRepublicaIds, authUser?.id]);
 
     // Cargar repúblicas cuando el usuario esté autenticado
     useEffect(() => {
@@ -196,18 +202,22 @@ export default function HomeView() {
         }
     };
 
-    const toggleFavorite = (rep) => {
+    const toggleFavorite = async (rep) => {
         const repId = rep.id;
         const alreadyFavorite = favoriteRepublicaIds.includes(repId);
-        setFavoriteRepublicaIds((prev) => alreadyFavorite
-            ? prev.filter((id) => id !== repId)
-            : [...prev, repId]);
-        setStatus({
-            type: "success",
-            message: alreadyFavorite
-                ? "República removida dos favoritos."
-                : "República adicionada aos favoritos.",
-        });
+        try {
+            if (alreadyFavorite) {
+                await removeFavorito(repId);
+                setFavoriteRepublicaIds((prev) => prev.filter((id) => id !== repId));
+                setStatus({ type: "success", message: "República removida dos favoritos." });
+            } else {
+                await addFavorito(repId);
+                setFavoriteRepublicaIds((prev) => [...prev, repId]);
+                setStatus({ type: "success", message: "República adicionada aos favoritos." });
+            }
+        } catch (e) {
+            setStatus({ type: "error", message: e.message });
+        }
     };
 
     const favoriteRepublicas = useMemo(() =>
@@ -469,28 +479,110 @@ export default function HomeView() {
         }
     };
 
+    const cargarResenas = async (republicaId) => {
+        setLoadingResenas(true);
+        try {
+            const data = await getResenas(republicaId);
+            setResenasData(data);
+            // Identificar si el usuario actual ya dejó una reseña
+            const miResenaEncontrada = data.resenas?.find(r => r.id_usuario === authUser?.id);
+            setMiResena(miResenaEncontrada || null);
+            if (miResenaEncontrada) {
+                setNuevaResena({ calificacion: miResenaEncontrada.calificacion, comentario: miResenaEncontrada.comentario || "" });
+            } else {
+                setNuevaResena({ calificacion: 5, comentario: "" });
+            }
+        } catch (e) {
+            setResenasData({ resenas: [], promedio: null, total: 0 });
+            setMiResena(null);
+        }
+        setLoadingResenas(false);
+    };
+
+    // Cargar reseñas cuando se selecciona una república
+    useEffect(() => {
+        if (selectedRepublica && !esDuenho) {
+            cargarResenas(selectedRepublica.id);
+        }
+    }, [selectedRepublica?.id]);
+
+    const handleResenaChange = (field, value) => {
+        setNuevaResena(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleSubmitResena = async (e) => {
+        e.preventDefault();
+        setIsSubmitting(true);
+        try {
+            if (miResena) {
+                // Editar reseña existente
+                const updated = await updateMiResena(selectedRepublica.id, nuevaResena);
+                setStatus({ type: "success", message: "Reseña actualizada correctamente." });
+            } else {
+                // Crear nueva reseña
+                const created = await createResena(selectedRepublica.id, nuevaResena);
+                setStatus({ type: "success", message: "Reseña agregada correctamente." });
+            }
+            await cargarResenas(selectedRepublica.id);
+            setEditandoResena(false);
+        } catch (error) {
+            setStatus({ type: "error", message: error.message });
+        }
+        setIsSubmitting(false);
+    };
+
+    const handleDeleteResena = async () => {
+        if (!confirm("¿Estás seguro de eliminar tu reseña?")) return;
+        setIsSubmitting(true);
+        try {
+            await deleteMiResena(selectedRepublica.id);
+            setStatus({ type: "success", message: "Reseña eliminada correctamente." });
+            await cargarResenas(selectedRepublica.id);
+            setEditandoResena(false);
+        } catch (error) {
+            setStatus({ type: "error", message: error.message });
+        }
+        setIsSubmitting(false);
+    };
+
+    const handleEditResenaToggle = () => {
+        if (!editandoResena && miResena) {
+            setNuevaResena({ calificacion: miResena.calificacion, comentario: miResena.comentario || "" });
+        }
+        setEditandoResena(prev => !prev);
+    };
+
     const cancelRepublicaForm = () => {
         setShowRepublicaForm(false);
         setEditingRepublica(null);
     };
 
-    // Navegación por scroll con secciones
-    const scrollToSection = (target) => {
+    // Navegación por rutas con hash
+    const navigateToSection = (target) => {
+        navigate(`#${target}`);
+        setUserMenuOpen(false);
+    };
+
+    // Efecto que escucha cambios en el hash y hace scroll a la sección correspondiente
+    useEffect(() => {
+        const hash = location.hash.replace("#", "");
+        if (!hash) return;
+
         if (esDuenho) {
             const sectionMap = {
                 "meu-perfil": "duenho-perfil",
                 "minha-republica": "duenho-republica",
                 "favoritos": "duenho-favoritos",
                 "configuracoes": "duenho-config",
+                "gerenciar": "duenho-favoritos",
             };
-            const el = document.getElementById(sectionMap[target] || target);
+            const el = document.getElementById(sectionMap[hash] || hash);
             if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
         } else {
-            const el = document.getElementById(target);
+            const el = document.getElementById(hash);
             if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
         }
-        setUserMenuOpen(false);
-    };
+    }, [location.hash, esDuenho]);
 
     const DUENHO_NAV_ITEMS = [
         { label: "Minha Rep", target: "minha-republica" },
@@ -555,6 +647,127 @@ export default function HomeView() {
     );
 
     // ────────────────────────
+    // R E S E Ñ A S   (render)
+    // ────────────────────────
+    const renderEstrellas = (calificacion) => {
+        return "★".repeat(calificacion) + "☆".repeat(5 - calificacion);
+    };
+
+    const renderResenasSection = () => (
+        <section className="dashboard-section" aria-labelledby="resenas-heading">
+            <div className="dashboard-section__header">
+                <span className="badge-section">Reseñas</span>
+                <h2 id="resenas-heading">
+                    {resenasData.promedio !== null ? (
+                        <>Calificación: {renderEstrellas(Math.round(resenasData.promedio))} {resenasData.promedio.toFixed(1)} ({resenasData.total} reseña{resenasData.total !== 1 ? "s" : ""})</>
+                    ) : (
+                        "Reseñas"
+                    )}
+                </h2>
+            </div>
+
+            {loadingResenas ? (
+                <LoadingIndicator message="Cargando reseñas..." />
+            ) : (
+                <>
+                    {/* Formulario para agregar/editar reseña (solo buscadores) */}
+                    {!esDuenho && (
+                        <div className="resena-form-container">
+                            {!editandoResena ? (
+                                <div className="resena-actions">
+                                    {miResena ? (
+                                        <div className="resena-mi-resena">
+                                            <p><strong>Tu reseña:</strong> {renderEstrellas(miResena.calificacion)} {miResena.comentario && `— ${miResena.comentario}`}</p>
+                                            <div className="resena-actions__buttons">
+                                                <button type="button" className="btn btn--small" onClick={handleEditResenaToggle}>
+                                                    ✎ Editar
+                                                </button>
+                                                <button type="button" className="btn btn--small btn--danger" onClick={handleDeleteResena}>
+                                                    Eliminar
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <button type="button" className="btn btn--primary" onClick={() => setEditandoResena(true)}>
+                                            Dejar una reseña
+                                        </button>
+                                    )}
+                                </div>
+                            ) : (
+                                <form className="resena-form" onSubmit={handleSubmitResena}>
+                                    <div className="resena-form__field">
+                                        <label><strong>Calificación:</strong></label>
+                                        <div className="resena-estrellas">
+                                            {[1, 2, 3, 4, 5].map(star => (
+                                                <button
+                                                    key={star}
+                                                    type="button"
+                                                    className={`resena-estrella ${star <= nuevaResena.calificacion ? "resena-estrella--activa" : ""}`}
+                                                    onClick={() => handleResenaChange("calificacion", star)}
+                                                    aria-label={`${star} estrella${star !== 1 ? "s" : ""}`}
+                                                >
+                                                    {star <= nuevaResena.calificacion ? "★" : "☆"}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="resena-form__field">
+                                        <label htmlFor="resena-comentario"><strong>Comentario (opcional):</strong></label>
+                                        <textarea
+                                            id="resena-comentario"
+                                            className="field__textarea"
+                                            rows="3"
+                                            value={nuevaResena.comentario}
+                                            onChange={(e) => handleResenaChange("comentario", e.target.value)}
+                                            placeholder="Comparte tu experiencia en esta república..."
+                                        />
+                                    </div>
+                                    <div className="resena-form__actions">
+                                        <button type="submit" className="btn btn--primary" disabled={isSubmitting}>
+                                            {isSubmitting ? "Guardando..." : miResena ? "Actualizar reseña" : "Publicar reseña"}
+                                        </button>
+                                        <button type="button" className="btn" onClick={() => { setEditandoResena(false); if (miResena) setNuevaResena({ calificacion: miResena.calificacion, comentario: miResena.comentario || "" }); }}>
+                                            Cancelar
+                                        </button>
+                                    </div>
+                                </form>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Lista de reseñas */}
+                    {resenasData.resenas.length === 0 ? (
+                        <div className="empty-state" role="status">
+                            <p>Esta república aún no tiene reseñas. ¡Sé el primero en dejar una!</p>
+                        </div>
+                    ) : (
+                        <div className="resenas-list">
+                            {resenasData.resenas.map((resena) => (
+                                <div key={resena.id_resena} className="resena-item">
+                                    <div className="resena-item__header">
+                                        <span className="resena-item__usuario">{resena.nombre_usuario}</span>
+                                        <span className="resena-item__estrellas">{renderEstrellas(resena.calificacion)}</span>
+                                        <span className="resena-item__fecha">
+                                            {new Date(resena.fecha_creacion).toLocaleDateString("pt-BR", {
+                                                day: "numeric",
+                                                month: "short",
+                                                year: "numeric",
+                                            })}
+                                        </span>
+                                    </div>
+                                    {resena.comentario && (
+                                        <p className="resena-item__comentario">{resena.comentario}</p>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </>
+            )}
+        </section>
+    );
+
+    // ────────────────────────
     // B U S C A D O R   V I E W
     // ────────────────────────
     const renderRepublicaDetailView = () => (
@@ -593,6 +806,9 @@ export default function HomeView() {
                     </div>
                 </div>
             </section>
+
+            {/* Sección de reseñas */}
+            {renderResenasSection()}
         </div>
     );
 
@@ -1094,7 +1310,7 @@ export default function HomeView() {
                                         key={item.target}
                                         type="button"
                                         className="app-header__nav-link"
-                                        onClick={() => scrollToSection(item.target)}
+                                        onClick={() => navigateToSection(item.target)}
                                     >
                                         {item.label}
                                     </button>
@@ -1131,7 +1347,7 @@ export default function HomeView() {
                                                     key={item.target}
                                                     type="button"
                                                     className="user-menu__item"
-                                                    onClick={() => scrollToSection(item.target)}
+                                                    onClick={() => navigateToSection(item.target)}
                                                     role="menuitem"
                                                 >
                                                     {item.label}

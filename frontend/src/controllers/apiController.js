@@ -34,6 +34,14 @@ export function clearAuthToken() {
 const handleAxiosError = (err) => {
     if (err.response && err.response.data) {
         const data = err.response.data;
+        // FastAPI validation errors (422) return detail as an array
+        if (Array.isArray(data.detail)) {
+            const messages = data.detail.map((e) => {
+                const field = e.loc?.slice(1).join(".") || "campo";
+                return `${field}: ${e.msg}`;
+            });
+            throw new Error(messages.join("; "));
+        }
         throw new Error(data.detail || data.message || JSON.stringify(data));
     }
     throw err;
@@ -140,6 +148,45 @@ export const deleteRepublica = async (id) => {
     }
 };
 
+/** Obtiene las reseñas de una república */
+export const getResenas = async (republicaId) => {
+    try {
+        const res = await api.get(`/api/republicas/${republicaId}/resenas`);
+        return res.data;
+    } catch (err) {
+        handleAxiosError(err);
+    }
+};
+
+/** Crea una reseña en una república (solo buscadores) */
+export const createResena = async (republicaId, resenaData) => {
+    try {
+        const res = await api.post(`/api/republicas/${republicaId}/resenas`, resenaData);
+        return res.data;
+    } catch (err) {
+        handleAxiosError(err);
+    }
+};
+
+/** Edita mi reseña en una república */
+export const updateMiResena = async (republicaId, resenaData) => {
+    try {
+        const res = await api.put(`/api/republicas/${republicaId}/resenas/mi-resena`, resenaData);
+        return res.data;
+    } catch (err) {
+        handleAxiosError(err);
+    }
+};
+
+/** Elimina mi reseña de una república */
+export const deleteMiResena = async (republicaId) => {
+    try {
+        await api.delete(`/api/republicas/${republicaId}/resenas/mi-resena`);
+    } catch (err) {
+        handleAxiosError(err);
+    }
+};
+
 /** Sube una foto a una república. Recibe el ID y un objeto File. */
 export const uploadRepublicaFoto = async (id, file) => {
     try {
@@ -148,6 +195,36 @@ export const uploadRepublicaFoto = async (id, file) => {
         const res = await api.post(`/api/republicas/${id}/foto`, formData, {
             headers: { "Content-Type": "multipart/form-data" },
         });
+        return res.data;
+    } catch (err) {
+        handleAxiosError(err);
+    }
+};
+
+/** Obtiene los IDs de las repúblicas favoritas del usuario autenticado. */
+export const getFavoritos = async () => {
+    try {
+        const res = await api.get("/api/favoritos");
+        return res.data.favoritos;
+    } catch (err) {
+        handleAxiosError(err);
+    }
+};
+
+/** Agrega una república a favoritos del usuario autenticado. */
+export const addFavorito = async (republicaId) => {
+    try {
+        const res = await api.post(`/api/favoritos/${republicaId}`);
+        return res.data;
+    } catch (err) {
+        handleAxiosError(err);
+    }
+};
+
+/** Elimina una república de favoritos del usuario autenticado. */
+export const removeFavorito = async (republicaId) => {
+    try {
+        const res = await api.delete(`/api/favoritos/${republicaId}`);
         return res.data;
     } catch (err) {
         handleAxiosError(err);
