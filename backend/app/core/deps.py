@@ -9,7 +9,7 @@ from app.core.database import get_db
 from app.core.security import SECRET_KEY, ALGORITHM
 from app.models.usuario_model import Usuario
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/swagger-login")
 
 def get_current_user(
     db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)

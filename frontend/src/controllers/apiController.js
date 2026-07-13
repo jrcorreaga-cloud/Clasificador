@@ -102,7 +102,7 @@ export const getRepublicas = async (filters = {}) => {
         if (filters.maxPrecio) params.max_precio = filters.maxPrecio;
         if (filters.habitaciones) params.habitaciones = filters.habitaciones;
         if (filters.genero) params.genero = filters.genero;
-        const res = await api.get("/api/republicas", { params });
+        const res = await api.get("/api/republicas/", { params });
         return res.data;
     } catch (err) {
         handleAxiosError(err);
@@ -122,7 +122,7 @@ export const getRepublica = async (id) => {
 /** Crea una nueva república (solo dueños) */
 export const createRepublica = async (republicaData) => {
     try {
-        const res = await api.post("/api/republicas", republicaData);
+        const res = await api.post("/api/republicas/", republicaData);
         return res.data;
     } catch (err) {
         handleAxiosError(err);
@@ -192,6 +192,7 @@ export const uploadRepublicaFoto = async (id, file) => {
     try {
         const formData = new FormData();
         formData.append("foto", file);
+        formData.append("categoria", categoria);
         const res = await api.post(`/api/republicas/${id}/foto`, formData, {
             headers: { "Content-Type": "multipart/form-data" },
         });

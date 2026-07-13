@@ -34,11 +34,23 @@ class RepublicaUpdate(BaseModel):
     descripcion: Optional[str] = Field(None, description="Nueva descripción de la república")
 
 
+class RepublicaFotoResponse(BaseModel):
+    id_foto: int
+    id_republica: int
+    categoria: str
+    foto_url: str
+    fecha_subida: datetime
+
+    class Config:
+        from_attributes = True
+
 class RepublicaResponse(RepublicaBase):
     id_republica: int = Field(..., description="ID único de la república")
     id_duenho: int = Field(..., description="ID del usuario dueño de la república")
     fecha_creacion: datetime = Field(..., description="Fecha y hora de registro de la república")
+    fotos: list[RepublicaFotoResponse] = Field(default=[], description="Lista de fotos categorizadas")
 
     class Config:
         from_attributes = True
+
 

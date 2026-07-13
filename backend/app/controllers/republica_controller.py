@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
@@ -6,6 +6,7 @@ from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.storage import upload_image
 from app.models.republica_model import Republica
+from app.models.republica_foto_model import RepublicaFoto
 from app.models.usuario_model import Usuario
 from app.schemas.republica_schema import RepublicaCreate, RepublicaUpdate, RepublicaResponse, GeneroPermitido
 
@@ -195,6 +196,7 @@ def delete_republica(
 async def upload_republica_foto(
     republica_id: int,
     foto: UploadFile = File(..., description="Imagen de la república (jpeg, png o webp, máx. 5 MB)"),
+    categoria: str = Form(..., description="Categoría de la foto (casa, sala, cuartos, cocina, patio, banhos)"),
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_user)
 ):
@@ -210,11 +212,34 @@ async def upload_republica_foto(
             detail="No tienes permisos para subir foto a esta república"
         )
 
+    valid_categorias = ['casa', 'sala', 'cuartos', 'cocina', 'patio', 'banhos']
+    if categoria not in valid_categorias:
+        raise HTTPException(status_code=400, detail=f"Categoría inválida. Debe ser una de: {', '.join(valid_categorias)}")
+
     # Subimos la imagen (valida tipo y tamaño internamente)
     foto_url = await upload_image(foto)
 
-    # Actualizamos el registro con la nueva URL
-    republica.foto_url = foto_url
+    # Buscar si ya existe una foto para esa categoría (opcional: reemplazarla o añadir nueva)
+    # Aquí vamos a reemplazar si el usuario sube otra de la misma categoría para evitar acumulación infinita
+    foto_existente = db.query(RepublicaFoto).filter(
+        RepublicaFoto.id_republica == republica_id,
+        RepublicaFoto.categoria == categoria
+    ).first()
+
+    if foto_existente:
+        foto_existente.foto_url = foto_url
+    else:
+        nueva_foto = RepublicaFoto(
+            id_republica=republica_id,
+            categoria=categoria,
+            foto_url=foto_url
+        )
+        db.add(nueva_foto)
+
+    # Mantenemos foto_url para compatibilidad si la categoría es 'casa'
+    if categoria == 'casa':
+        republica.foto_url = foto_url
+
     db.commit()
     db.refresh(republica)
 
