@@ -90,8 +90,8 @@ export default function ProfileView() {
 
     const userInitials = authUser?.name ? authUser.name.charAt(0).toUpperCase() : "U";
     const isUfopEmail = authUser?.email?.endsWith("@aluno.ufop.edu.br");
-    const roleLabel = authUser?.role === 'owner' ? 'Decano (Dono)' : 'Buscador';
-    const roleIcon = authUser?.role === 'owner' ? '👑' : '🔍';
+    const roleLabel = authUser?.role === 'dueño' ? 'Decano (Dono)' : 'Buscador';
+    const roleIcon = authUser?.role === 'dueño' ? '👑' : '🔍';
 
     return (
         <div className="dashboard-page">

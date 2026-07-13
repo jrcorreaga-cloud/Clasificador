@@ -10,7 +10,7 @@ export default function Navbar() {
     const userMenuRef = useRef(null);
     const userMenuPanelRef = useRef(null);
 
-    const esDuenho = authUser?.role === 'owner';
+    const esDuenho = authUser?.role === 'dueño';
     const userInitials = authUser?.name ? authUser.name.charAt(0).toUpperCase() : "U";
 
     const USER_MENU_ITEMS = [

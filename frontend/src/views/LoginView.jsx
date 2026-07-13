@@ -29,14 +29,13 @@ export default function LoginView() {
         setStatus({ type: "idle", message: "" });
         try {
             const data = await loginDemo(formData);
-            const user = new UserProfile(
-                data.user.id_usuario,
-                data.user.nombre,
-                data.user.correo,
-                data.user.rol,
-                data.user.es_verificado_ufop,
-                data.user.telefono
-            );
+            const user = new UserProfile({
+                id: data.user.id_usuario || data.user.id,
+                name: data.user.nombre || data.user.name,
+                email: data.user.correo || data.user.email,
+                role: data.user.rol || data.user.role,
+                phone: data.user.telefono || ""
+            });
             login(user, data.access_token);
         } catch (err) {
             setStatus({ type: "error", message: err.message || "Credenciales incorrectas" });

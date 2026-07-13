@@ -26,7 +26,7 @@ export default function DuenhoDashboardView() {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
-        if (authUser?.role === 'owner') {
+        if (authUser?.role === 'dueño') {
             cargarRepublicas();
         }
     }, [authUser]);
@@ -96,7 +96,11 @@ export default function DuenhoDashboardView() {
         e.preventDefault();
         setIsSubmitting(true);
         try {
-            const payload = { ...republicaForm };
+            const payload = { 
+                ...republicaForm,
+                precio: parseFloat(republicaForm.precio),
+                num_habitaciones: parseInt(republicaForm.num_habitaciones, 10)
+            };
             let repId;
 
             if (editingRepublica) {

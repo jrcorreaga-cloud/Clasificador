@@ -23,7 +23,7 @@ export default function RepublicaDetailView() {
     const [editandoResena, setEditandoResena] = useState(false);
     const [nuevaResena, setNuevaResena] = useState({ calificacion: 5, comentario: "" });
 
-    const esDuenho = authUser?.role === 'owner';
+    const esDuenho = authUser?.role === 'dueño';
 
     useEffect(() => {
         const fetchRepublica = async () => {
