@@ -94,7 +94,7 @@ export const updateUserProfile = async (profileData) => {
     }
 };
 
-/** Obtiene todas las repúblicas con filtros opcionales */
+/** Obtiene todas las repúblicas con filtros opcionales y paginación */
 export const getRepublicas = async (filters = {}) => {
     try {
         const params = {};
@@ -102,7 +102,13 @@ export const getRepublicas = async (filters = {}) => {
         if (filters.maxPrecio) params.max_precio = filters.maxPrecio;
         if (filters.habitaciones) params.habitaciones = filters.habitaciones;
         if (filters.genero) params.genero = filters.genero;
+        if (filters.userLat) params.user_lat = filters.userLat;
+        if (filters.userLon) params.user_lon = filters.userLon;
+        if (filters.page) params.page = filters.page;
+        if (filters.limit) params.limit = filters.limit;
+
         const res = await api.get("/api/republicas/", { params });
+        // Retorna { total, page, pages, limit, items }
         return res.data;
     } catch (err) {
         handleAxiosError(err);
@@ -188,7 +194,7 @@ export const deleteMiResena = async (republicaId) => {
 };
 
 /** Sube una foto a una república. Recibe el ID y un objeto File. */
-export const uploadRepublicaFoto = async (id, file) => {
+export const uploadRepublicaFoto = async (id, file, categoria = 'casa') => {
     try {
         const formData = new FormData();
         formData.append("foto", file);

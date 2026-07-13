@@ -1,65 +1,54 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { UserProfile } from '../models/userProfileModel';
-
-const USER_MENU_ITEMS = [
-    { label: "Meu Perfil", target: "/profile" },
-    { label: "Favoritos", target: "/?section=favoritos" },
-    { label: "Configurações", target: "/profile" },
-];
+import '../styles/login.css';
 
 export default function Navbar() {
     const { authUser, logout } = useAuth();
     const navigate = useNavigate();
     const [userMenuOpen, setUserMenuOpen] = useState(false);
     const userMenuRef = useRef(null);
+    const userMenuPanelRef = useRef(null);
 
-    const esDuenho = authUser?.role === "dueño";
+    const esDuenho = authUser?.role === 'owner';
+    const userInitials = authUser?.name ? authUser.name.charAt(0).toUpperCase() : "U";
 
-    const DUENHO_NAV_ITEMS = [
-        { label: "Minha Rep", target: "/?section=minha-republica" },
-        { label: "Gerenciar", target: "/?section=gerenciar" },
-        { label: "Meu Perfil", target: "/profile" },
+    const USER_MENU_ITEMS = [
+        { label: "Meu Perfil / Favoritos", target: "/profile" },
     ];
 
-    const BUSCADOR_NAV_ITEMS = [
-        { label: "Repúblicas", target: "/" },
-        { label: "Favoritos", target: "/?section=favoritos" },
-        { label: "Meu Perfil", target: "/profile" },
-    ];
+    const NAV_ITEMS = esDuenho 
+        ? [{ label: "Minha República", target: "/duenho" }]
+        : [{ label: "Buscar Repúblicas", target: "/" }];
 
-    const navItems = esDuenho ? DUENHO_NAV_ITEMS : BUSCADOR_NAV_ITEMS;
-
-    const userInitials = useMemo(() => {
-        if (!authUser?.name) return "R";
-        const nameParts = authUser.name.trim().split(/\s+/).filter(Boolean);
-        const firstInitial = nameParts[0]?.[0] ?? "R";
-        const secondInitial = nameParts[1]?.[0] ?? authUser.name.trim()[1] ?? "";
-        return `${firstInitial}${secondInitial}`.toUpperCase();
-    }, [authUser]);
-
+    // Close menu when clicking outside
     useEffect(() => {
-        const handleDocumentClick = (event) => {
-            if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+        const handleClickOutside = (event) => {
+            if (
+                userMenuRef.current &&
+                !userMenuRef.current.contains(event.target) &&
+                userMenuPanelRef.current &&
+                !userMenuPanelRef.current.contains(event.target)
+            ) {
                 setUserMenuOpen(false);
             }
         };
-        document.addEventListener("mousedown", handleDocumentClick);
-        return () => document.removeEventListener("mousedown", handleDocumentClick);
-    }, []);
 
-    useEffect(() => {
-        const handleEscape = (event) => {
-            if (event.key === "Escape" && userMenuOpen) {
-                setUserMenuOpen(false);
-            }
-        };
-        document.addEventListener("keydown", handleEscape);
-        return () => document.removeEventListener("keydown", handleEscape);
+        if (userMenuOpen) {
+            document.addEventListener("mousedown", handleClickOutside);
+        } else {
+            document.removeEventListener("mousedown", handleClickOutside);
+        }
+        return () => document.removeEventListener("mousedown", handleClickOutside);
     }, [userMenuOpen]);
 
+    const handleNavigate = (path) => {
+        setUserMenuOpen(false);
+        navigate(path);
+    };
+
     const handleLogout = () => {
+        setUserMenuOpen(false);
         logout();
         navigate('/login');
     };
@@ -76,14 +65,15 @@ export default function Navbar() {
                 </Link>
 
                 <nav className="app-header__nav" aria-label="Navegação principal">
-                    {navItems.map((item) => (
-                        <Link
-                            key={item.label}
-                            to={item.target}
+                    {NAV_ITEMS.map((item) => (
+                        <button
+                            key={item.target}
+                            type="button"
                             className="app-header__nav-link"
+                            onClick={() => handleNavigate(item.target)}
                         >
                             {item.label}
-                        </Link>
+                        </button>
                     ))}
                 </nav>
 
@@ -104,23 +94,24 @@ export default function Navbar() {
                             </span>
                         </button>
 
-                        {userMenuOpen && (
+                        {userMenuOpen ? (
                             <div
                                 id="user-menu-panel"
                                 className="user-menu__panel"
                                 role="menu"
                                 aria-label="Menu do usuário"
+                                ref={userMenuPanelRef}
                             >
                                 {USER_MENU_ITEMS.map((item) => (
-                                    <Link
-                                        key={item.label}
-                                        to={item.target}
+                                    <button
+                                        key={item.target}
+                                        type="button"
                                         className="user-menu__item"
-                                        onClick={() => setUserMenuOpen(false)}
+                                        onClick={() => handleNavigate(item.target)}
                                         role="menuitem"
                                     >
                                         {item.label}
-                                    </Link>
+                                    </button>
                                 ))}
                                 <button
                                     type="button"
@@ -131,7 +122,7 @@ export default function Navbar() {
                                     Sair
                                 </button>
                             </div>
-                        )}
+                        ) : null}
                     </div>
                 </div>
             </div>

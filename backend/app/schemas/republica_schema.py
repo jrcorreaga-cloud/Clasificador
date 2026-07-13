@@ -18,6 +18,8 @@ class RepublicaBase(BaseModel):
     genero_permitido: GeneroPermitido = Field(..., description="Género de inquilinos permitido en la república")
     foto_url: Optional[str] = Field(None, description="URL de la foto principal de la república (se actualiza vía POST /{id}/foto)", example="https://bucket.s3.amazonaws.com/republicas/abc123.jpg")
     descripcion: Optional[str] = Field(None, description="Descripción libre de la república, comodidades e información adicional", example="República con piscina, churrasqueira y área de estudio compartida. Muy cerca del campus.")
+    latitud: Optional[float] = Field(None, description="Latitud (generada automáticamente por geocoding)", example=-20.385574)
+    longitud: Optional[float] = Field(None, description="Longitud (generada automáticamente por geocoding)", example=-43.503578)
 
 
 class RepublicaCreate(RepublicaBase):
@@ -54,3 +56,11 @@ class RepublicaResponse(RepublicaBase):
         from_attributes = True
 
 
+from typing import List
+
+class PaginatedRepublicaResponse(BaseModel):
+    total: int = Field(..., description="Total de repúblicas que coinciden con los filtros")
+    page: int = Field(..., description="Página actual")
+    pages: int = Field(..., description="Total de páginas disponibles")
+    limit: int = Field(..., description="Límite de resultados por página")
+    items: List[RepublicaResponse] = Field(..., description="Lista de repúblicas en esta página")

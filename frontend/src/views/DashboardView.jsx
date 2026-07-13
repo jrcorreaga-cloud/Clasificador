@@ -1,141 +1,164 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { useLocation } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { getRepublicas, createRepublica, updateRepublica, deleteRepublica, uploadRepublicaFoto } from '../controllers/apiController';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
+import { getRepublicas, getFavoritos, addFavorito, removeFavorito } from '../controllers/apiController';
 import { Republica } from '../models/republicaModel';
 import RepublicaCard from '../components/RepublicaCard';
 import LoadingIndicator from '../components/LoadingIndicator';
-import RepublicaForm from '../components/RepublicaForm'; // We'll create this next
+import { useAuth } from '../contexts/AuthContext';
+
+const RepublicaMap = lazy(() => import('../components/RepublicaMap'));
 
 export default function DashboardView() {
     const { authUser } = useAuth();
-    const location = useLocation();
-    const esDuenho = authUser?.role === "dueño";
-
+    
+    // Republica states
     const [republicas, setRepublicas] = useState([]);
     const [allRepublicas, setAllRepublicas] = useState([]);
     const [favoriteRepublicaIds, setFavoriteRepublicaIds] = useState([]);
     const [loadingRepublicas, setLoadingRepublicas] = useState(false);
-    const [status, setStatus] = useState({ type: "idle", message: "" });
     const [filters, setFilters] = useState({ minPrecio: "", maxPrecio: "", habitaciones: "", genero: "" });
 
-    // Dueño states
-    const [showRepublicaForm, setShowRepublicaForm] = useState(false);
-    const [editingRepublica, setEditingRepublica] = useState(null);
+    // Map & Pagination states
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [hasMore, setHasMore] = useState(false);
+    const [viewMode, setViewMode] = useState("list");
+    const [userLocation, setUserLocation] = useState(null);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [status, setStatus] = useState({ type: "idle", message: "" });
 
-    // Cargar favoritos del localstorage
     useEffect(() => {
-        const storageKey = `repop-favorites-${authUser?.id ?? "guest"}`;
+        if (authUser) {
+            cargarRepublicas(1);
+            loadFavoritos();
+        }
+    }, [authUser]);
+
+    const loadFavoritos = async () => {
         try {
-            const saved = localStorage.getItem(storageKey);
-            if (saved) {
-                setFavoriteRepublicaIds(JSON.parse(saved));
-            } else {
-                setFavoriteRepublicaIds([]);
-            }
+            const favs = await getFavoritos();
+            setFavoriteRepublicaIds(favs.map(f => f.id_republica));
         } catch (e) {
             setFavoriteRepublicaIds([]);
         }
-    }, [authUser?.id]);
+    };
 
-    useEffect(() => {
-        const storageKey = `repop-favorites-${authUser?.id ?? "guest"}`;
+    const toggleFavorite = async (rep) => {
+        const repId = rep.id;
+        const alreadyFavorite = favoriteRepublicaIds.includes(repId);
         try {
-            localStorage.setItem(storageKey, JSON.stringify(favoriteRepublicaIds));
-        } catch (e) {}
-    }, [favoriteRepublicaIds, authUser?.id]);
-
-    useEffect(() => {
-        cargarRepublicas();
-    }, []);
-
-    // Desplazamiento por anclas en la URL (?section=favoritos)
-    useEffect(() => {
-        const params = new URLSearchParams(location.search);
-        const section = params.get('section');
-        if (section) {
-            const el = document.getElementById(section);
-            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-    }, [location]);
-
-    const cargarRepublicas = async () => {
-        setLoadingRepublicas(true);
-        try {
-            const data = await getRepublicas();
-            const mapped = Republica.fromList(data);
-            setAllRepublicas(mapped);
-            setRepublicas(mapped);
+            if (alreadyFavorite) {
+                await removeFavorito(repId);
+                setFavoriteRepublicaIds((prev) => prev.filter((id) => id !== repId));
+                setStatus({ type: "success", message: "República removida dos favoritos." });
+            } else {
+                await addFavorito(repId);
+                setFavoriteRepublicaIds((prev) => [...prev, repId]);
+                setStatus({ type: "success", message: "República adicionada aos favoritos." });
+            }
         } catch (e) {
-            // Fallback content...
-            const fallbackData = [
-                { id_republica: 1, nombre_republica: "República Horizonte", direccion: "Rua do Ouvidor, 123", precio: 850.00, num_habitaciones: 3, genero_permitido: "mixto", descripcion: "Próximo ao centro, ambiente tranquilo e regras claras para convivência." },
-                { id_republica: 2, nombre_republica: "Casa das Ladeiras", direccion: "Rua dos Inconfidentes, 45", precio: 650.00, num_habitaciones: 2, genero_permitido: "solo mujeres", descripcion: "Quartos individuais, internet estável e perfil ideal para quem estuda à noite." },
-                { id_republica: 3, nombre_republica: "Solar do Pilar", direccion: "Rua do Pilar, 789", precio: 720.00, num_habitaciones: 4, genero_permitido: "solo hombres", descripcion: "Espaço compartilhado com boa mobilidade e preferência para calouros." },
-            ];
-            const mappedFallback = Republica.fromList(fallbackData);
-            setAllRepublicas(mappedFallback);
-            setRepublicas(mappedFallback);
+            setStatus({ type: "error", message: e.message });
         }
+        
+        // Limpiar mensaje tras 3 segundos
+        setTimeout(() => setStatus({ type: "idle", message: "" }), 3000);
+    };
+
+    const cargarRepublicas = async (pageNumber = 1, locationOverride = null) => {
+        const isFirstPage = pageNumber === 1;
+        if (isFirstPage) {
+            setLoadingRepublicas(true);
+        } else {
+            setLoadingMore(true);
+        }
+
+        try {
+            const reqFilters = { page: pageNumber, limit: 10 };
+            if (filters.minPrecio) reqFilters.minPrecio = Number(filters.minPrecio);
+            if (filters.maxPrecio) reqFilters.maxPrecio = Number(filters.maxPrecio);
+            if (filters.habitaciones) reqFilters.habitaciones = Number(filters.habitaciones);
+            if (filters.genero) reqFilters.genero = filters.genero;
+
+            const loc = locationOverride !== undefined ? locationOverride : userLocation;
+            if (loc) {
+                reqFilters.userLat = loc.lat;
+                reqFilters.userLon = loc.lng;
+            }
+
+            const data = await getRepublicas(reqFilters);
+            const items = data.items || data;
+            const mapped = Republica.fromList(Array.isArray(items) ? items : []);
+            
+            if (isFirstPage) {
+                setAllRepublicas(mapped);
+                setRepublicas(mapped);
+            } else {
+                setAllRepublicas(prev => [...prev, ...mapped]);
+                setRepublicas(prev => [...prev, ...mapped]);
+            }
+            
+            const currentPage = data.page || 1;
+            const pages = data.pages || 1;
+            setPage(currentPage);
+            setTotalPages(pages);
+            setHasMore(currentPage < pages);
+        } catch (e) {
+            console.error("Error cargando repúblicas:", e);
+        }
+        
         setLoadingRepublicas(false);
+        setLoadingMore(false);
     };
 
     const aplicarFiltros = async () => {
-        setLoadingRepublicas(true);
-        try {
-            const filtros = {};
-            if (filters.minPrecio) filtros.minPrecio = Number(filters.minPrecio);
-            if (filters.maxPrecio) filtros.maxPrecio = Number(filters.maxPrecio);
-            if (filters.habitaciones) filtros.habitaciones = Number(filters.habitaciones);
-            if (filters.genero) filtros.genero = filters.genero;
-            const data = await getRepublicas(filtros);
-            setRepublicas(Republica.fromList(data));
-        } catch (e) {
-            let filtradas = [...allRepublicas];
-            if (filters.minPrecio) filtradas = filtradas.filter(r => r.precio >= Number(filters.minPrecio));
-            if (filters.maxPrecio) filtradas = filtradas.filter(r => r.precio <= Number(filters.maxPrecio));
-            if (filters.habitaciones) filtradas = filtradas.filter(r => r.habitaciones >= Number(filters.habitaciones));
-            if (filters.genero) filtradas = filtradas.filter(r => r.genero === filters.genero);
-            setRepublicas(filtradas);
-        }
-        setLoadingRepublicas(false);
+        setPage(1);
+        cargarRepublicas(1);
     };
 
     const limpiarFiltros = () => {
         setFilters({ minPrecio: "", maxPrecio: "", habitaciones: "", genero: "" });
-        setRepublicas(allRepublicas);
+        setUserLocation(null);
+        setPage(1);
+        setTimeout(() => cargarRepublicas(1, null), 0);
     };
 
-    const toggleFavorite = (rep) => {
-        const repId = rep.id;
-        const alreadyFavorite = favoriteRepublicaIds.includes(repId);
-        setFavoriteRepublicaIds((prev) => alreadyFavorite
-            ? prev.filter((id) => id !== repId)
-            : [...prev, repId]);
-        setStatus({
-            type: "success",
-            message: alreadyFavorite ? "República removida dos favoritos." : "República adicionada aos favoritos.",
-        });
-    };
-
-    const favoriteRepublicas = useMemo(() =>
-        allRepublicas.filter((rep) => favoriteRepublicaIds.includes(rep.id)),
-        [allRepublicas, favoriteRepublicaIds]
-    );
-
-    const handleDeleteRepublica = async (id) => {
-        if (!window.confirm("¿Estás seguro de eliminar esta república?")) return;
-        try {
-            await deleteRepublica(id);
-            setStatus({ type: "success", message: "República eliminada." });
-            cargarRepublicas();
-        } catch (error) {
-            setStatus({ type: "error", message: error.message });
+    const handleLocationToggle = () => {
+        if (userLocation) {
+            setUserLocation(null);
+            setPage(1);
+            cargarRepublicas(1, null);
+        } else {
+            if (!("geolocation" in navigator)) {
+                setStatus({ type: "error", message: "Seu navegador não suporta geolocalização." });
+                return;
+            }
+            setStatus({ type: "idle", message: "Obtendo sua localização..." });
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const loc = { lat: position.coords.latitude, lng: position.coords.longitude };
+                    setUserLocation(loc);
+                    setPage(1);
+                    setStatus({ type: "success", message: "📍 Ordenando por proximidade..." });
+                    cargarRepublicas(1, loc);
+                    setTimeout(() => setStatus({ type: "idle", message: "" }), 3000);
+                },
+                (err) => {
+                    setStatus({ type: "error", message: "Não foi possível obter sua localização." });
+                    setTimeout(() => setStatus({ type: "idle", message: "" }), 3000);
+                },
+                { enableHighAccuracy: true, timeout: 10000 }
+            );
         }
     };
 
-    const renderBuscadorView = () => (
+    return (
         <div className="dashboard-page">
+            {status.message && (
+                <div style={{ padding: '10px', background: status.type === 'error' ? '#f8d7da' : '#d4edda', color: status.type === 'error' ? '#721c24' : '#155724', textAlign: 'center', marginBottom: '1rem' }}>
+                    {status.message}
+                </div>
+            )}
+
+            {/* Buscador + Filtros */}
             <section className="dashboard-section" id="buscador-grid" aria-labelledby="buscador-heading">
                 <div className="dashboard-section__header">
                     <span className="badge-section">Buscar</span>
@@ -145,19 +168,45 @@ export default function DashboardView() {
                 <div className="filtros-grid" role="search" aria-label="Filtros de búsqueda">
                     <div className="filtro-item">
                         <label htmlFor="filtro-minPrecio">Preço mín.</label>
-                        <input id="filtro-minPrecio" className="field__input" type="number" placeholder="R$ 0" value={filters.minPrecio} onChange={(e) => setFilters(f => ({ ...f, minPrecio: e.target.value }))} />
+                        <input
+                            id="filtro-minPrecio"
+                            className="field__input"
+                            type="number"
+                            placeholder="R$ 0"
+                            value={filters.minPrecio}
+                            onChange={(e) => setFilters(f => ({ ...f, minPrecio: e.target.value }))}
+                        />
                     </div>
                     <div className="filtro-item">
                         <label htmlFor="filtro-maxPrecio">Preço máx.</label>
-                        <input id="filtro-maxPrecio" className="field__input" type="number" placeholder="R$ 5000" value={filters.maxPrecio} onChange={(e) => setFilters(f => ({ ...f, maxPrecio: e.target.value }))} />
+                        <input
+                            id="filtro-maxPrecio"
+                            className="field__input"
+                            type="number"
+                            placeholder="R$ 5000"
+                            value={filters.maxPrecio}
+                            onChange={(e) => setFilters(f => ({ ...f, maxPrecio: e.target.value }))}
+                        />
                     </div>
                     <div className="filtro-item">
                         <label htmlFor="filtro-habitaciones">Quartos mín.</label>
-                        <input id="filtro-habitaciones" className="field__input" type="number" placeholder="1" value={filters.habitaciones} onChange={(e) => setFilters(f => ({ ...f, habitaciones: e.target.value }))} />
+                        <input
+                            id="filtro-habitaciones"
+                            className="field__input"
+                            type="number"
+                            placeholder="1"
+                            value={filters.habitaciones}
+                            onChange={(e) => setFilters(f => ({ ...f, habitaciones: e.target.value }))}
+                        />
                     </div>
                     <div className="filtro-item">
                         <label htmlFor="filtro-genero">Gênero</label>
-                        <select id="filtro-genero" className="field__select" value={filters.genero} onChange={(e) => setFilters(f => ({ ...f, genero: e.target.value }))}>
+                        <select
+                            id="filtro-genero"
+                            className="field__select"
+                            value={filters.genero}
+                            onChange={(e) => setFilters(f => ({ ...f, genero: e.target.value }))}
+                        >
                             <option value="">Todos</option>
                             <option value="solo hombres">Solo hombres</option>
                             <option value="solo mujeres">Solo mujeres</option>
@@ -165,115 +214,67 @@ export default function DashboardView() {
                         </select>
                     </div>
                     <div className="filtro-actions">
-                        <button className="btn btn--primary" onClick={aplicarFiltros}>Filtrar</button>
-                        <button className="btn" onClick={limpiarFiltros}>Limpar</button>
+                        <button className="btn btn--primary" onClick={aplicarFiltros} aria-label="Aplicar filtros">Filtrar</button>
+                        <button className="btn" onClick={limpiarFiltros} aria-label="Limpiar filtros">Limpar</button>
+                        <button 
+                            className={`btn ${userLocation ? 'btn--active-location' : 'btn--secondary'}`} 
+                            onClick={handleLocationToggle}
+                        >
+                            {userLocation ? '📍 Perto de mim ✓' : '📍 Perto de mim'}
+                        </button>
+                        <button className="btn btn--secondary" onClick={() => setViewMode(v => v === 'list' ? 'map' : 'list')}>
+                            {viewMode === 'list' ? '🗺️ Ver Mapa' : '📄 Ver Lista'}
+                        </button>
                     </div>
                 </div>
             </section>
 
+            {/* Grid de repúblicas */}
             <section className="dashboard-section" aria-labelledby="resultados-heading">
                 <div className="dashboard-section__header">
                     <span className="badge-section">Resultados</span>
                     <h2 id="resultados-heading">{republicas.length} república{republicas.length !== 1 ? "s" : ""} encontrada{republicas.length !== 1 ? "s" : ""}</h2>
                 </div>
 
-                {loadingRepublicas ? (
+                {loadingRepublicas && page === 1 ? (
                     <LoadingIndicator message="Buscando repúblicas..." />
                 ) : republicas.length === 0 ? (
-                    <div className="empty-state"><p>Nenhuma república encontrada.</p></div>
-                ) : (
-                    <div className="republicas-grid">
-                        {republicas.map((rep) => <RepublicaCard key={rep.id} rep={rep} isFavorite={favoriteRepublicaIds.includes(rep.id)} toggleFavorite={toggleFavorite} />)}
+                    <div className="empty-state" role="status" aria-live="polite">
+                        <p>Nenhuma república encontrada com esses filtros.</p>
                     </div>
+                ) : (
+                    <>
+                        {viewMode === 'list' ? (
+                            <div className="republicas-grid" role="list" aria-label="Lista de repúblicas">
+                                {republicas.map((rep) => (
+                                    <RepublicaCard 
+                                        key={rep.id} 
+                                        rep={rep} 
+                                        isFavorite={favoriteRepublicaIds.includes(rep.id)}
+                                        toggleFavorite={toggleFavorite}
+                                    />
+                                ))}
+                            </div>
+                        ) : (
+                            <Suspense fallback={<LoadingIndicator message="Carregando mapa..." />}>
+                                <RepublicaMap republicas={republicas} />
+                            </Suspense>
+                        )}
+
+                        {hasMore && (
+                            <div style={{ textAlign: 'center', marginTop: '2rem' }}>
+                                <button 
+                                    className="btn btn--primary" 
+                                    onClick={() => cargarRepublicas(page + 1)}
+                                    disabled={loadingMore}
+                                >
+                                    {loadingMore ? 'Carregando...' : 'Carregar Mais'}
+                                </button>
+                            </div>
+                        )}
+                    </>
                 )}
             </section>
-
-            <section className="dashboard-section" id="favoritos" aria-labelledby="favoritos-heading">
-                <div className="dashboard-section__header">
-                    <span className="badge-section">Favoritos</span>
-                    <h2 id="favoritos-heading">Repúblicas que você salvou</h2>
-                </div>
-                {favoriteRepublicas.length === 0 ? (
-                    <div className="empty-state"><p>Você ainda não salvou nenhuma república como favorita.</p></div>
-                ) : (
-                    <div className="republicas-grid">
-                        {favoriteRepublicas.map((rep) => <RepublicaCard key={rep.id} rep={rep} isFavorite={true} toggleFavorite={toggleFavorite} />)}
-                    </div>
-                )}
-            </section>
-
-            {status.message && (
-                <div className={`status-box status-box--${status.type}`}>{status.message}</div>
-            )}
         </div>
     );
-
-    const renderDuenhoDashboard = () => {
-        const miRepublica = allRepublicas.find(r => r.idDuenho === authUser?.id);
-
-        return (
-            <div className="dashboard-page">
-                <section className="dashboard-hero">
-                    <div className="dashboard-hero__copy">
-                        <span className="dashboard-hero__eyebrow">Painel do Decano</span>
-                        <h1>Gerencie sua república</h1>
-                        <p>Bem-vindo, {authUser?.name}.</p>
-                    </div>
-                </section>
-
-                <section className="dashboard-section" id="minha-republica">
-                    <div className="dashboard-section__header">
-                        <span className="badge-section">Minha Rep</span>
-                        <h2>{miRepublica ? "Sua república" : "Cadastre sua república"}</h2>
-                    </div>
-
-                    {loadingRepublicas ? (
-                        <LoadingIndicator message="Carregando..." />
-                    ) : miRepublica && !showRepublicaForm ? (
-                        <div className="duenho-republica-card">
-                             {miRepublica.fotoSrc && (
-                                <div className="duenho-republica-card__foto">
-                                    <img src={miRepublica.fotoSrc} alt="Foto da república" />
-                                </div>
-                            )}
-                            <div className="duenho-republica-card__header">
-                                <h3>{miRepublica.nombre}</h3>
-                                <div className="duenho-republica-card__actions">
-                                    <button className="btn btn--small" onClick={() => { setEditingRepublica(miRepublica); setShowRepublicaForm(true); }}>✎ Editar</button>
-                                    <button className="btn btn--small btn--danger" onClick={() => handleDeleteRepublica(miRepublica.id)}>Excluir</button>
-                                </div>
-                            </div>
-                        </div>
-                    ) : null}
-
-                    {showRepublicaForm ? (
-                        <RepublicaForm 
-                            editingRepublica={editingRepublica} 
-                            onCancel={() => { setShowRepublicaForm(false); setEditingRepublica(null); }}
-                            onSuccess={() => { setShowRepublicaForm(false); setEditingRepublica(null); cargarRepublicas(); }}
-                            setStatus={setStatus}
-                        />
-                    ) : !miRepublica ? (
-                        <div className="empty-state">
-                            <button className="btn btn--primary" onClick={() => setShowRepublicaForm(true)}>Cadastrar minha república</button>
-                        </div>
-                    ) : null}
-                </section>
-
-                <section className="dashboard-section" id="gerenciar">
-                    <div className="dashboard-section__header">
-                        <span className="badge-section">Gerenciar</span>
-                        <h2>Candidatos e mensagens</h2>
-                    </div>
-                    <div className="empty-state"><p>Nenhum candidato ainda.</p></div>
-                </section>
-
-                {status.message && (
-                    <div className={`status-box status-box--${status.type}`}>{status.message}</div>
-                )}
-            </div>
-        );
-    };
-
-    return esDuenho ? renderDuenhoDashboard() : renderBuscadorView();
 }

@@ -8,7 +8,9 @@ from app.core.storage import upload_image
 from app.models.republica_model import Republica
 from app.models.republica_foto_model import RepublicaFoto
 from app.models.usuario_model import Usuario
-from app.schemas.republica_schema import RepublicaCreate, RepublicaUpdate, RepublicaResponse, GeneroPermitido
+from app.schemas.republica_schema import RepublicaCreate, RepublicaUpdate, RepublicaResponse, GeneroPermitido, PaginatedRepublicaResponse
+from app.core.geocoding import get_coordinates
+from sqlalchemy import func
 
 router = APIRouter(prefix="/republicas", tags=["Repúblicas"])
 
@@ -28,7 +30,7 @@ router = APIRouter(prefix="/republicas", tags=["Repúblicas"])
         403: {"description": "El usuario no tiene rol de dueño"},
     },
 )
-def create_republica(
+async def create_republica(
     republica_in: RepublicaCreate,
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_user)
@@ -48,10 +50,16 @@ def create_republica(
             detail="Ya tienes una república registrada. Solo se permite promocionar una propiedad por dueño."
         )
 
+    # Obtenemos coordenadas
+    lat, lon = await get_coordinates(republica_in.direccion)
+
     new_republica = Republica(
         **republica_in.model_dump(),
-        id_duenho=current_user.id_usuario
+        id_duenho=current_user.id_usuario,
+        latitud=lat,
+        longitud=lon
     )
+
 
     db.add(new_republica)
     db.commit()
@@ -62,19 +70,23 @@ def create_republica(
 
 @router.get(
     "/",
-    response_model=List[RepublicaResponse],
-    summary="Listar repúblicas con filtros opcionales",
+    response_model=PaginatedRepublicaResponse,
+    summary="Listar repúblicas con filtros opcionales y paginación",
     description=(
-        "Retorna todas las repúblicas disponibles. "
-        "Se pueden aplicar filtros por precio, número de habitaciones y género permitido. "
-        "No requiere autenticación."
+        "Retorna repúblicas paginadas. "
+        "Filtros: precio, habitaciones, género. "
+        "Si se envía user_lat y user_lon, se ordenan por distancia ('cerca de mí')."
     ),
 )
 def get_republicas(
-    min_precio: Optional[float] = Query(None, description="Precio mínimo mensual en BRL", example=500.0),
-    max_precio: Optional[float] = Query(None, description="Precio máximo mensual en BRL", example=1500.0),
-    habitaciones: Optional[int] = Query(None, description="Cantidad mínima de habitaciones", example=2),
-    genero: Optional[GeneroPermitido] = Query(None, description="Género permitido en la república"),
+    min_precio: Optional[float] = Query(None, description="Precio mínimo en BRL"),
+    max_precio: Optional[float] = Query(None, description="Precio máximo en BRL"),
+    habitaciones: Optional[int] = Query(None, description="Cantidad mínima de habitaciones"),
+    genero: Optional[GeneroPermitido] = Query(None, description="Género permitido"),
+    user_lat: Optional[float] = Query(None, description="Latitud del buscador"),
+    user_lon: Optional[float] = Query(None, description="Longitud del buscador"),
+    page: int = Query(1, ge=1, description="Número de página"),
+    limit: int = Query(10, ge=1, le=50, description="Resultados por página"),
     db: Session = Depends(get_db)
 ):
     # Query Builder dinámico (Senior approach)
@@ -89,7 +101,27 @@ def get_republicas(
     if genero is not None:
         query = query.filter(Republica.genero_permitido == genero)
 
-    return query.all()
+    if user_lat is not None and user_lon is not None:
+        # Ordenar por distancia euclidiana aproximada (ya que es solo una ciudad)
+        # (lat1 - lat2)^2 + (lon1 - lon2)^2
+        distancia = func.pow(Republica.latitud - user_lat, 2) + func.pow(Republica.longitud - user_lon, 2)
+        query = query.order_by(distancia.asc())
+    else:
+        query = query.order_by(Republica.id_republica.desc())
+
+    total = query.count()
+    pages = (total + limit - 1) // limit
+    offset = (page - 1) * limit
+
+    items = query.offset(offset).limit(limit).all()
+
+    return {
+        "total": total,
+        "page": page,
+        "pages": pages,
+        "limit": limit,
+        "items": items
+    }
 
 
 @router.get(
@@ -117,7 +149,7 @@ def get_republica(republica_id: int, db: Session = Depends(get_db)):
         404: {"description": "República no encontrada"},
     },
 )
-def update_republica(
+async def update_republica(
     republica_id: int,
     republica_in: RepublicaUpdate,
     db: Session = Depends(get_db),
@@ -136,6 +168,12 @@ def update_republica(
         )
 
     update_data = republica_in.model_dump(exclude_unset=True)
+    
+    if "direccion" in update_data:
+        lat, lon = await get_coordinates(update_data["direccion"])
+        republica.latitud = lat
+        republica.longitud = lon
+    
     for field, value in update_data.items():
         setattr(republica, field, value)
 

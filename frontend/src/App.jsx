@@ -4,6 +4,7 @@ import { useAuth } from './contexts/AuthContext';
 import Navbar from './components/Navbar';
 import LoginView from './views/LoginView';
 import DashboardView from './views/DashboardView';
+import DuenhoDashboardView from './views/DuenhoDashboardView';
 import ProfileView from './views/ProfileView';
 import RepublicaDetailView from './views/RepublicaDetailView';
 
@@ -39,6 +40,15 @@ export default function App() {
                 element={
                     <PrivateRoute>
                         <DashboardView />
+                    </PrivateRoute>
+                } 
+            />
+            
+            <Route 
+                path="/duenho" 
+                element={
+                    <PrivateRoute>
+                        <DuenhoDashboardView />
                     </PrivateRoute>
                 } 
             />

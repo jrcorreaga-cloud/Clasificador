@@ -14,6 +14,8 @@ class Republica(Base):
     genero_permitido = Column(Enum('solo hombres', 'solo mujeres', 'mixto', name='genero_enum'), nullable=False, index=True)
     foto_url = Column(String(255), nullable=True)
     descripcion = Column(Text, nullable=True)
+    latitud = Column(Numeric(10, 8), nullable=True)
+    longitud = Column(Numeric(11, 8), nullable=True)
     fecha_creacion = Column(DateTime, server_default=func.current_timestamp())
 
     # Relación con usuario (dueño)

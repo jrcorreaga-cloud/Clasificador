@@ -225,14 +225,14 @@ textarea {
 }
 
 .btn--primary {
-  background: var(--color-nav);
+  background: #10b981;
   color: #fff;
-  border-color: var(--color-nav);
+  border-color: #10b981;
 }
 
 .btn--primary:hover:not(:disabled) {
-  background: var(--color-nav-hover);
-  border-color: var(--color-nav-hover);
+  background: #059669;
+  border-color: #059669;
 }
 
 .btn--danger {
@@ -243,6 +243,28 @@ textarea {
 
 .btn--danger:hover:not(:disabled) {
   background: var(--color-error-bg);
+}
+
+.btn--secondary {
+  background: var(--color-bg);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+.btn--secondary:hover:not(:disabled) {
+  background: var(--color-card);
+  border-color: var(--color-text-secondary);
+}
+
+.btn--active-location {
+  background: #0ea5e9;
+  color: #fff;
+  border-color: #0ea5e9;
+}
+
+.btn--active-location:hover:not(:disabled) {
+  background: #0284c7;
+  border-color: #0284c7;
 }
 
 .btn--subtle {

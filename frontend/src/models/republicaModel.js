@@ -12,6 +12,8 @@ export class Republica {
     this.descripcion = data.descripcion;
     this.idDuenho = data.id_duenho;
     this.fechaCreacion = data.fecha_creacion;
+    this.latitud = data.latitud;
+    this.longitud = data.longitud;
     this.fotosRaw = data.fotos || [];
     
     // Agrupar fotos por categoría
