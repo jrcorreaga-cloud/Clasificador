@@ -14,7 +14,7 @@ export default function Navbar() {
     const userInitials = authUser?.name ? authUser.name.charAt(0).toUpperCase() : "U";
 
     const USER_MENU_ITEMS = [
-        { label: "Meu Perfil / Favoritos", target: "/profile" },
+        { label: authUser?.role === 'dueño' ? "Meu Perfil" : "Meu Perfil / Favoritos", target: "/profile" },
     ];
 
     const NAV_ITEMS = esDuenho 

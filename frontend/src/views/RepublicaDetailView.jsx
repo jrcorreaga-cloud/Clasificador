@@ -30,7 +30,7 @@ export default function RepublicaDetailView() {
             setLoading(true);
             try {
                 const data = await getRepublica(id);
-                setSelectedRepublica(Republica.fromJson(data));
+                setSelectedRepublica(new Republica(data));
             } catch (err) {
                 setStatus({ type: "error", message: "Error al cargar la república" });
             }
@@ -121,7 +121,7 @@ export default function RepublicaDetailView() {
     if (loading) {
         return (
             <div className="dashboard-page" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-                <LoadingIndicator message="Cargando detalles..." />
+                <LoadingIndicator message="Carregando detalhes..." />
             </div>
         );
     }
@@ -130,8 +130,8 @@ export default function RepublicaDetailView() {
         return (
             <div className="dashboard-page">
                 <div className="empty-state">
-                    <p>No se encontró la república.</p>
-                    <button className="btn btn--primary" onClick={handleBackToList}>Volver</button>
+                    <p>Não foi possível encontrar a república.</p>
+                    <button className="btn btn--primary" onClick={handleBackToList}>Voltar</button>
                 </div>
             </div>
         );
@@ -147,10 +147,10 @@ export default function RepublicaDetailView() {
 
             <section className="dashboard-section" aria-labelledby="republica-detalle-heading">
                 <div className="dashboard-section__header">
-                    <button className="btn btn--secondary" type="button" onClick={handleBackToList} aria-label="Volver a la lista de repúblicas">
-                        ← Volver
+                    <button className="btn btn--secondary" type="button" onClick={handleBackToList} aria-label="Voltar à lista de repúblicas">
+                        ← Voltar
                     </button>
-                    <span className="badge-section" style={{ marginLeft: "1rem" }}>Detalle</span>
+                    <span className="badge-section" style={{ marginLeft: "1rem" }}>Detalhes</span>
                     <h2 id="republica-detalle-heading">{selectedRepublica.nombre}</h2>
                 </div>
 
@@ -162,11 +162,11 @@ export default function RepublicaDetailView() {
                     )}
 
                     <div className="republica-detail-card__content">
-                        <p><strong>Dirección:</strong> {selectedRepublica.direccion}</p>
-                        <p><strong>Precio:</strong> {selectedRepublica.precioFormateado}</p>
-                        <p><strong>Cuartos:</strong> {selectedRepublica.habitaciones}</p>
-                        <p><strong>Género permitido:</strong> {selectedRepublica.generoLabel}</p>
-                        <p><strong>Descripción:</strong> {selectedRepublica.descripcion || "Información de la república próximamente."}</p>
+                        <p><strong>Endereço:</strong> {selectedRepublica.direccion}</p>
+                        <p><strong>Preço:</strong> {selectedRepublica.precioFormateado}</p>
+                        <p><strong>Quartos:</strong> {selectedRepublica.habitaciones}</p>
+                        <p><strong>Gênero permitido:</strong> {selectedRepublica.generoLabel}</p>
+                        <p><strong>Descrição:</strong> {selectedRepublica.descripcion || "Informações da república em breve."}</p>
                         <div className="republica-detail-card__actions">
                             <button type="button" className="btn btn--secondary">
                                 Email
@@ -181,18 +181,18 @@ export default function RepublicaDetailView() {
 
             <section className="dashboard-section" aria-labelledby="resenas-heading">
                 <div className="dashboard-section__header">
-                    <span className="badge-section">Reseñas</span>
+                    <span className="badge-section">Avaliações</span>
                     <h2 id="resenas-heading">
                         {resenasData.promedio !== null ? (
-                            <>Calificación: {renderEstrellas(Math.round(resenasData.promedio))} {resenasData.promedio.toFixed(1)} ({resenasData.total} reseña{resenasData.total !== 1 ? "s" : ""})</>
+                            <>Avaliação: {renderEstrellas(Math.round(resenasData.promedio))} {resenasData.promedio.toFixed(1)} ({resenasData.total} avaliação{resenasData.total !== 1 ? "ões" : "ão"})</>
                         ) : (
-                            "Reseñas"
+                            "Avaliações"
                         )}
                     </h2>
                 </div>
 
                 {loadingResenas ? (
-                    <LoadingIndicator message="Cargando reseñas..." />
+                    <LoadingIndicator message="Carregando avaliações..." />
                 ) : (
                     <>
                         {!esDuenho && (
@@ -201,26 +201,26 @@ export default function RepublicaDetailView() {
                                     <div className="resena-actions">
                                         {miResena ? (
                                             <div className="resena-mi-resena">
-                                                <p><strong>Tu reseña:</strong> {renderEstrellas(miResena.calificacion)} {miResena.comentario && `— ${miResena.comentario}`}</p>
+                                                <p><strong>Sua avaliação:</strong> {renderEstrellas(miResena.calificacion)} {miResena.comentario && `— ${miResena.comentario}`}</p>
                                                 <div className="resena-actions__buttons">
                                                     <button type="button" className="btn btn--small" onClick={handleEditResenaToggle}>
                                                         ✎ Editar
                                                     </button>
                                                     <button type="button" className="btn btn--small btn--danger" onClick={handleDeleteResena}>
-                                                        Eliminar
+                                                        Excluir
                                                     </button>
                                                 </div>
                                             </div>
                                         ) : (
                                             <button type="button" className="btn btn--primary" onClick={() => setEditandoResena(true)}>
-                                                Dejar una reseña
+                                                Fazer uma avaliação
                                             </button>
                                         )}
                                     </div>
                                 ) : (
                                     <form className="resena-form" onSubmit={handleSubmitResena}>
                                         <div className="resena-form__field">
-                                            <label><strong>Calificación:</strong></label>
+                                            <label><strong>Nota:</strong></label>
                                             <div className="resena-estrellas">
                                                 {[1, 2, 3, 4, 5].map(star => (
                                                     <button
@@ -228,7 +228,7 @@ export default function RepublicaDetailView() {
                                                         type="button"
                                                         className={`resena-estrella ${star <= nuevaResena.calificacion ? "resena-estrella--activa" : ""}`}
                                                         onClick={() => handleResenaChange("calificacion", star)}
-                                                        aria-label={`${star} estrella${star !== 1 ? "s" : ""}`}
+                                                        aria-label={`${star} estrela${star !== 1 ? "s" : ""}`}
                                                     >
                                                         {star <= nuevaResena.calificacion ? "★" : "☆"}
                                                     </button>
@@ -236,19 +236,19 @@ export default function RepublicaDetailView() {
                                             </div>
                                         </div>
                                         <div className="resena-form__field">
-                                            <label htmlFor="resena-comentario"><strong>Comentario (opcional):</strong></label>
+                                            <label htmlFor="resena-comentario"><strong>Comentário (opcional):</strong></label>
                                             <textarea
                                                 id="resena-comentario"
                                                 className="field__textarea"
                                                 rows="3"
                                                 value={nuevaResena.comentario}
                                                 onChange={(e) => handleResenaChange("comentario", e.target.value)}
-                                                placeholder="Comparte tu experiencia en esta república..."
+                                                placeholder="Compartilhe sua experiência nesta república..."
                                             />
                                         </div>
                                         <div className="resena-form__actions">
                                             <button type="submit" className="btn btn--primary" disabled={isSubmitting}>
-                                                {isSubmitting ? "Guardando..." : miResena ? "Actualizar reseña" : "Publicar reseña"}
+                                                {isSubmitting ? "Salvando..." : miResena ? "Atualizar avaliação" : "Publicar avaliação"}
                                             </button>
                                             <button type="button" className="btn" onClick={() => { setEditandoResena(false); if (miResena) setNuevaResena({ calificacion: miResena.calificacion, comentario: miResena.comentario || "" }); }}>
                                                 Cancelar
@@ -261,7 +261,7 @@ export default function RepublicaDetailView() {
 
                         {resenasData.resenas.length === 0 ? (
                             <div className="empty-state" role="status">
-                                <p>Esta república aún no tiene reseñas. ¡Sé el primero en dejar una!</p>
+                                <p>Esta república ainda não tem avaliações. Seja o primeiro a avaliar!</p>
                             </div>
                         ) : (
                             <div className="resenas-list">

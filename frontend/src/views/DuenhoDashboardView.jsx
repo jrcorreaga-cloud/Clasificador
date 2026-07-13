@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { getRepublicas, createRepublica, updateRepublica, deleteRepublica, uploadRepublicaFoto } from '../controllers/apiController';
+import { getMyRepublica, createRepublica, updateRepublica, deleteRepublica, uploadRepublicaFoto } from '../controllers/apiController';
 import { Republica } from '../models/republicaModel';
 import LoadingIndicator from '../components/LoadingIndicator';
+import LocationPickerMap from '../components/LocationPickerMap';
 import '../styles/login.css';
 
 export default function DuenhoDashboardView() {
     const { authUser } = useAuth();
-    const [republicas, setRepublicas] = useState([]);
+    const [miRepublica, setMiRepublica] = useState(null);
     const [loadingRepublicas, setLoadingRepublicas] = useState(false);
     
     // Dueño form states
@@ -19,10 +20,14 @@ export default function DuenhoDashboardView() {
         precio: "",
         num_habitaciones: "",
         genero_permitido: "mixto",
-        descripcion: ""
+        descripcion: "",
+        latitud: null,
+        longitud: null
     });
-    const [fotoFile, setFotoFile] = useState(null);
-    const [fotoPreview, setFotoPreview] = useState(null);
+    
+    const initialFotosState = { casa: null, sala: null, cuartos: null, cocina: null, patio: null, banhos: null };
+    const [fotoFiles, setFotoFiles] = useState(initialFotosState);
+    const [fotoPreviews, setFotoPreviews] = useState(initialFotosState);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
@@ -34,13 +39,14 @@ export default function DuenhoDashboardView() {
     const cargarRepublicas = async () => {
         setLoadingRepublicas(true);
         try {
-            // Fetch enough items to guarantee we find the owner's republica
-            const data = await getRepublicas({ limit: 100 });
-            const items = data.items || data;
-            const mapped = Republica.fromList(Array.isArray(items) ? items : []);
-            setRepublicas(mapped);
+            const data = await getMyRepublica();
+            if (data) {
+                setMiRepublica(new Republica(data));
+            } else {
+                setMiRepublica(null);
+            }
         } catch (e) {
-            console.error("Error loading republicas:", e);
+            console.error("Error loading mi republica:", e);
         }
         setLoadingRepublicas(false);
     };
@@ -49,12 +55,21 @@ export default function DuenhoDashboardView() {
         setRepublicaForm({ ...republicaForm, [e.target.name]: e.target.value });
     };
 
-    const handleFotoFileChange = (e) => {
+    const handleFotoFileChange = (categoria, e) => {
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0];
-            setFotoFile(file);
-            setFotoPreview(URL.createObjectURL(file));
+            setFotoFiles(prev => ({ ...prev, [categoria]: file }));
+            setFotoPreviews(prev => ({ ...prev, [categoria]: URL.createObjectURL(file) }));
         }
+    };
+
+    const handleLocationSelected = (location) => {
+        setRepublicaForm(prev => ({
+            ...prev,
+            direccion: location.address,
+            latitud: location.lat,
+            longitud: location.lon
+        }));
     };
 
     const openCreateForm = () => {
@@ -65,10 +80,12 @@ export default function DuenhoDashboardView() {
             precio: "",
             num_habitaciones: "",
             genero_permitido: "mixto",
-            descripcion: ""
+            descripcion: "",
+            latitud: null,
+            longitud: null
         });
-        setFotoFile(null);
-        setFotoPreview(null);
+        setFotoFiles(initialFotosState);
+        setFotoPreviews(initialFotosState);
         setShowRepublicaForm(true);
     };
 
@@ -79,11 +96,23 @@ export default function DuenhoDashboardView() {
             direccion: rep.direccion,
             precio: rep.precio,
             num_habitaciones: rep.habitaciones,
-            genero_permitido: rep.generoPermitido,
-            descripcion: rep.descripcion || ""
+            genero_permitido: rep.genero,
+            descripcion: rep.descripcion || "",
+            latitud: rep.latitud || null,
+            longitud: rep.longitud || null
         });
-        setFotoFile(null);
-        setFotoPreview(rep.fotoSrc || null);
+        setFotoFiles(initialFotosState);
+        
+        // Cargar fotos existentes si están disponibles
+        const loadedPreviews = { ...initialFotosState };
+        if (rep.fotosPorCategoria) {
+            Object.keys(rep.fotosPorCategoria).forEach(cat => {
+                if (rep.fotosPorCategoria[cat]) {
+                    loadedPreviews[cat] = rep.resolveFotoUrl(rep.fotosPorCategoria[cat].foto_url);
+                }
+            });
+        }
+        setFotoPreviews(loadedPreviews);
         setShowRepublicaForm(true);
     };
 
@@ -109,17 +138,24 @@ export default function DuenhoDashboardView() {
                 alert("República atualizada com sucesso!");
             } else {
                 const nuevaRep = await createRepublica(payload);
-                repId = nuevaRep.id_republica;
+                repId = nuevaRep.id_republica || nuevaRep.id;
                 alert("República cadastrada com sucesso!");
             }
 
-            if (fotoFile) {
-                try {
-                    await uploadRepublicaFoto(repId, fotoFile);
-                } catch (err) {
-                    console.error("Erro no upload da foto", err);
-                    alert("A república foi salva, mas ocorreu um erro no upload da foto.");
+            // Upload de fotos
+            let uploadErrors = false;
+            for (const categoria of Object.keys(fotoFiles)) {
+                if (fotoFiles[categoria]) {
+                    try {
+                        await uploadRepublicaFoto(repId, fotoFiles[categoria], categoria);
+                    } catch (err) {
+                        console.error(`Erro no upload da foto ${categoria}`, err);
+                        uploadErrors = true;
+                    }
                 }
+            }
+            if (uploadErrors) {
+                alert("A república foi salva, mas ocorreu um erro no upload de algumas fotos.");
             }
 
             setShowRepublicaForm(false);
@@ -141,8 +177,6 @@ export default function DuenhoDashboardView() {
             }
         }
     };
-
-    const miRepublica = republicas.find(r => r.idDuenho === authUser?.id);
 
     return (
         <div className="dashboard-page">
@@ -238,7 +272,7 @@ export default function DuenhoDashboardView() {
                                 />
                             </label>
                             <label className="republica-form__field republica-form__field--full">
-                                <span>Endereço *</span>
+                                <span>Endereço * (Pesquise no mapa ou digite)</span>
                                 <input
                                     className="field__input"
                                     type="text"
@@ -247,6 +281,10 @@ export default function DuenhoDashboardView() {
                                     onChange={handleRepublicaFormChange}
                                     required
                                     placeholder="Ex: Rua Direita, 200, Ouro Preto"
+                                />
+                                <LocationPickerMap 
+                                    onLocationSelected={handleLocationSelected} 
+                                    initialPosition={republicaForm.latitud && republicaForm.longitud ? [republicaForm.latitud, republicaForm.longitud] : null}
                                 />
                             </label>
                             <label className="republica-form__field">
@@ -289,25 +327,45 @@ export default function DuenhoDashboardView() {
                                     <option value="mixto">Misto</option>
                                 </select>
                             </label>
-                            <label className="republica-form__field republica-form__field--full">
-                                <span>Foto (Opcional)</span>
-                                <input
-                                    className="field__input field__input--file"
-                                    type="file"
-                                    accept="image/jpeg, image/png, image/webp"
-                                    onChange={handleFotoFileChange}
-                                />
-                                <small className="field__help">
-                                    Formatos aceitos: JPG, PNG, WebP · Máx. 5 MB
-                                </small>
-                                {fotoPreview && (
-                                    <img
-                                        src={fotoPreview}
-                                        alt="Preview"
-                                        style={{ display: "block", marginTop: "1rem", maxWidth: "200px", borderRadius: "8px" }}
-                                    />
-                                )}
-                            </label>
+                            <div className="republica-form__field republica-form__field--full" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                <span>Fotos da República</span>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                                    {[
+                                        { key: 'casa', label: 'Fachada/Principal' },
+                                        { key: 'sala', label: 'Sala' },
+                                        { key: 'cuartos', label: 'Quartos' },
+                                        { key: 'cocina', label: 'Cozinha' },
+                                        { key: 'patio', label: 'Área Externa / Pátio' },
+                                        { key: 'banhos', label: 'Banheiros' },
+                                    ].map(cat => (
+                                        <div key={cat.key} style={{ border: '1px dashed #ccc', padding: '1rem', borderRadius: '8px', textAlign: 'center' }}>
+                                            <p style={{ margin: '0 0 0.5rem 0', fontWeight: 'bold' }}>{cat.label}</p>
+                                            <label style={{ display: 'block', cursor: 'pointer' }}>
+                                                {fotoPreviews[cat.key] ? (
+                                                    <img
+                                                        src={fotoPreviews[cat.key]}
+                                                        alt={cat.label}
+                                                        style={{ display: "block", margin: "0 auto 0.5rem auto", width: "100%", height: "120px", objectFit: "cover", borderRadius: "8px" }}
+                                                    />
+                                                ) : (
+                                                    <div style={{ background: '#f5f5f5', height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px', marginBottom: '0.5rem' }}>
+                                                        <span style={{ color: '#999', fontSize: '2rem' }}>+</span>
+                                                    </div>
+                                                )}
+                                                <input
+                                                    type="file"
+                                                    accept="image/jpeg, image/png, image/webp"
+                                                    onChange={(e) => handleFotoFileChange(cat.key, e)}
+                                                    style={{ display: 'none' }}
+                                                />
+                                                <span className="btn btn--small" style={{ display: 'inline-block', width: '100%', boxSizing: 'border-box' }}>
+                                                    {fotoPreviews[cat.key] ? "Alterar Foto" : "Adicionar Foto"}
+                                                </span>
+                                            </label>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                             <label className="republica-form__field republica-form__field--full">
                                 <span>Descrição</span>
                                 <textarea

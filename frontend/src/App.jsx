@@ -39,7 +39,7 @@ export default function App() {
                 path="/" 
                 element={
                     <PrivateRoute>
-                        <DashboardView />
+                        {authUser?.role === 'dueño' ? <Navigate to="/duenho" replace /> : <DashboardView />}
                     </PrivateRoute>
                 } 
             />

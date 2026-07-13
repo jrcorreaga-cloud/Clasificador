@@ -94,6 +94,17 @@ export const updateUserProfile = async (profileData) => {
     }
 };
 
+/** Obtiene la república del dueño logueado */
+export const getMyRepublica = async () => {
+    try {
+        const res = await api.get("/api/republicas/me");
+        return res.data;
+    } catch (err) {
+        if (err.response && err.response.status === 404) return null;
+        handleAxiosError(err);
+    }
+};
+
 /** Obtiene todas las repúblicas con filtros opcionales y paginación */
 export const getRepublicas = async (filters = {}) => {
     try {

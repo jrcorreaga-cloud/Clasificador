@@ -257,7 +257,7 @@ export default function DashboardView() {
                             </div>
                         ) : (
                             <Suspense fallback={<LoadingIndicator message="Carregando mapa..." />}>
-                                <RepublicaMap republicas={republicas} />
+                                <RepublicaMap republicas={republicas} userLocation={userLocation} />
                             </Suspense>
                         )}
 

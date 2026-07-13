@@ -14,6 +14,8 @@ export default function ProfileView() {
     const [profileFormData, setProfileFormData] = useState({ name: "", phone: "" });
     const [isSubmitting, setIsSubmitting] = useState(false);
     
+    const esDuenho = authUser?.role === 'dueño';
+    
     // Favorites State
     const [favoriteRepublicas, setFavoriteRepublicas] = useState([]);
     const [loadingFavorites, setLoadingFavorites] = useState(false);
@@ -191,30 +193,32 @@ export default function ProfileView() {
                 )}
             </section>
 
-            <section className="dashboard-section" id="favoritos" aria-labelledby="favoritos-heading">
-                <div className="dashboard-section__header">
-                    <span className="badge-section">Favoritos</span>
-                    <h2 id="favoritos-heading">Repúblicas que você salvou</h2>
-                </div>
-                {loadingFavorites ? (
-                    <LoadingIndicator message="Carregando favoritos..." />
-                ) : favoriteRepublicas.length === 0 ? (
-                    <div className="empty-state" role="status">
-                        <p>Você ainda não salvou nenhuma república como favorita.</p>
+            {!esDuenho && (
+                <section className="dashboard-section" aria-labelledby="favoritos-heading">
+                    <div className="dashboard-section__header">
+                        <span className="badge-section">Favoritos</span>
+                        <h2 id="favoritos-heading">Repúblicas que você salvou</h2>
                     </div>
-                ) : (
-                    <div className="republicas-grid" role="list" aria-label="Lista de favoritos">
-                        {favoriteRepublicas.map((rep) => (
-                            <RepublicaCard 
-                                key={rep.id} 
-                                rep={rep} 
-                                isFavorite={true} 
-                                toggleFavorite={toggleFavorite} 
-                            />
-                        ))}
-                    </div>
-                )}
-            </section>
+                    {loadingFavorites ? (
+                        <LoadingIndicator message="Carregando favoritos..." />
+                    ) : favoriteRepublicas.length === 0 ? (
+                        <div className="empty-state" role="status">
+                            <p>Você ainda não salvou nenhuma república como favorita.</p>
+                        </div>
+                    ) : (
+                        <div className="republicas-grid" role="list" aria-label="Lista de favoritos">
+                            {favoriteRepublicas.map((rep) => (
+                                <RepublicaCard 
+                                    key={rep.id} 
+                                    rep={rep} 
+                                    isFavorite={true} 
+                                    toggleFavorite={toggleFavorite} 
+                                />
+                            ))}
+                        </div>
+                    )}
+                </section>
+            )}
         </div>
     );
 }

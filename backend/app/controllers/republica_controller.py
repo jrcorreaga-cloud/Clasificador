@@ -53,8 +53,10 @@ async def create_republica(
     # Obtenemos coordenadas
     lat, lon = await get_coordinates(republica_in.direccion)
 
+    republica_data = republica_in.model_dump(exclude={"latitud", "longitud"})
+
     new_republica = Republica(
-        **republica_in.model_dump(),
+        **republica_data,
         id_duenho=current_user.id_usuario,
         latitud=lat,
         longitud=lon
@@ -123,6 +125,21 @@ def get_republicas(
         "items": items
     }
 
+
+@router.get(
+    "/me",
+    response_model=RepublicaResponse,
+    summary="Obtener la república del dueño autenticado"
+)
+def get_my_republica(current_user: Usuario = Depends(get_current_user), db: Session = Depends(get_db)):
+    rol_str = current_user.rol.value if hasattr(current_user.rol, 'value') else current_user.rol
+    if rol_str != 'dueño':
+        raise HTTPException(status_code=403, detail="Solo los dueños tienen repúblicas")
+    
+    republica = db.query(Republica).filter(Republica.id_duenho == current_user.id_usuario).first()
+    if not republica:
+        raise HTTPException(status_code=404, detail="No tienes una república registrada")
+    return republica
 
 @router.get(
     "/{republica_id}",

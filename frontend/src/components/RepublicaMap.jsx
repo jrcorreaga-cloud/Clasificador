@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, CircleMarker } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -11,7 +11,7 @@ L.Icon.Default.mergeOptions({
     shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
-export default function RepublicaMap({ republicas }) {
+export default function RepublicaMap({ republicas, userLocation }) {
     const OURO_PRETO_CENTER = [-20.385574, -43.503578];
 
     return (
@@ -33,6 +33,15 @@ export default function RepublicaMap({ republicas }) {
                         </Marker>
                     );
                 })}
+                {userLocation && (
+                    <CircleMarker 
+                        center={[userLocation.lat, userLocation.lon]} 
+                        radius={8} 
+                        pathOptions={{ color: '#007bff', fillColor: '#007bff', fillOpacity: 0.8 }}
+                    >
+                        <Popup>Você está aqui</Popup>
+                    </CircleMarker>
+                )}
             </MapContainer>
         </div>
     );

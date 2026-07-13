@@ -38,7 +38,7 @@ export default function LoginView() {
             });
             login(user, data.access_token);
         } catch (err) {
-            setStatus({ type: "error", message: err.message || "Credenciales incorrectas" });
+            setStatus({ type: "error", message: err.message || "Credenciais incorretas" });
         }
         setIsSubmitting(false);
     };
@@ -53,11 +53,11 @@ export default function LoginView() {
                 delete payload.telefono;
             }
             const res = await registerUser(payload);
-            setStatus({ type: "success", message: res.msg || "Registro exitoso. Ahora puedes iniciar sesión." });
+            setStatus({ type: "success", message: res.msg || "Registro concluído. Agora você pode entrar." });
             setMode("login");
             setFormData({ email: registerData.correo, password: registerData.contrasenia });
         } catch (err) {
-            setStatus({ type: "error", message: err.message || "Error al registrarse" });
+            setStatus({ type: "error", message: err.message || "Erro ao registrar-se" });
         }
         setIsSubmitting(false);
     };
@@ -78,7 +78,7 @@ export default function LoginView() {
             <section className="login-card" aria-label={mode === "login" ? "Formulário de login" : "Formulário de registro"}>
                 <div key={mode} className={`auth-view auth-view--${mode}`}>
                     <div className="login-card__header">
-                        <h2>{mode === "login" ? "Iniciar sesión" : "Crear cuenta"}</h2>
+                        <h2>{mode === "login" ? "Entrar" : "Criar conta"}</h2>
                     </div>
 
                     {status.message && (
@@ -90,19 +90,19 @@ export default function LoginView() {
                     {mode === "login" ? (
                         <form className="login-form" onSubmit={handleSubmit} noValidate>
                             <label className="field">
-                                <span className="field__label">Correo electrónico</span>
+                                <span className="field__label">E-mail</span>
                                 <input
                                     className="field__input"
                                     type="email"
                                     name="email"
                                     value={formData.email}
                                     onChange={handleChange}
-                                    placeholder="tu@correo.com"
+                                    placeholder="seu@email.com"
                                     autoComplete="email"
                                 />
                             </label>
                             <label className="field">
-                                <span className="field__label">Contraseña</span>
+                                <span className="field__label">Senha</span>
                                 <input
                                     className="field__input"
                                     type="password"
@@ -114,45 +114,45 @@ export default function LoginView() {
                                 />
                             </label>
                             <button type="submit" className="btn btn--primary btn--full" disabled={isSubmitting}>
-                                {isSubmitting ? "Ingresando..." : "Entrar"}
+                                {isSubmitting ? "Entrando..." : "Entrar"}
                             </button>
                             <button type="button" className="btn btn--full" onClick={() => { setMode("register"); setStatus({type: "idle", message: ""}) }}>
-                                Registrarme
+                                Cadastrar-se
                             </button>
                         </form>
                     ) : (
                         <form className="login-form login-form--register" onSubmit={handleRegisterSubmit} noValidate>
                             <label className="field">
-                                <span className="field__label">Nombre completo</span>
+                                <span className="field__label">Nome completo</span>
                                 <input
                                     className="field__input"
                                     type="text"
                                     name="nombre"
                                     value={registerData.nombre}
                                     onChange={handleRegisterChange}
-                                    placeholder="Tu nombre completo"
+                                    placeholder="Seu nome completo"
                                     autoComplete="name"
                                 />
                             </label>
                             <label className="field">
-                                <span className="field__label">Correo electrónico</span>
+                                <span className="field__label">E-mail</span>
                                 <input
                                     className="field__input"
                                     type="email"
                                     name="correo"
                                     value={registerData.correo}
                                     onChange={handleRegisterChange}
-                                    placeholder="tu@correo.com"
+                                    placeholder="seu@email.com"
                                     autoComplete="email"
                                 />
                                 {isUfopEmail ? (
-                                    <span className="badge badge--ufop">Correo UFOP verificado</span>
+                                    <span className="badge badge--ufop">E-mail UFOP verificado</span>
                                 ) : (
-                                    <span className="badge badge--subtle">Usa @aluno.ufop.edu.br para verificación UFOP</span>
+                                    <span className="badge badge--subtle">Use @aluno.ufop.edu.br para verificação UFOP</span>
                                 )}
                             </label>
                             <label className="field">
-                                <span className="field__label">Teléfono (opcional)</span>
+                                <span className="field__label">Telefone (opcional)</span>
                                 <input
                                     className="field__input"
                                     type="tel"
@@ -165,7 +165,7 @@ export default function LoginView() {
                             </label>
                             <div className="field-group">
                                 <label className="field">
-                                    <span className="field__label">Contraseña</span>
+                                    <span className="field__label">Senha</span>
                                     <input
                                         className="field__input"
                                         type="password"
@@ -177,15 +177,15 @@ export default function LoginView() {
                                     />
                                 </label>
                                 <label className="field">
-                                    <span className="field__label">¿Qué buscas?</span>
+                                    <span className="field__label">O que você busca?</span>
                                     <select
                                         className="field__select"
                                         name="rol"
                                         value={registerData.rol}
                                         onChange={handleRegisterChange}
                                     >
-                                        <option value="buscador">Busco una república</option>
-                                        <option value="dueño">Soy dueño de república</option>
+                                        <option value="buscador">Busco uma república</option>
+                                        <option value="dueño">Sou dono de república</option>
                                     </select>
                                 </label>
                             </div>
@@ -193,7 +193,7 @@ export default function LoginView() {
                                 {isSubmitting ? "Registrando..." : "Confirmar registro"}
                             </button>
                             <button type="button" className="btn btn--full" onClick={() => { setMode("login"); setStatus({type: "idle", message: ""}) }}>
-                                Ya tengo cuenta
+                                Já tenho conta
                             </button>
                         </form>
                     )}
