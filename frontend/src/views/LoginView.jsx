@@ -11,7 +11,7 @@ export default function LoginView() {
     
     const [mode, setMode] = useState("login");
     const [formData, setFormData] = useState({ email: "", password: "" });
-    const [registerData, setRegisterData] = useState({ nombre: "", correo: "", password: "", telefono: "", rol: "seeker" });
+    const [registerData, setRegisterData] = useState({ nombre: "", correo: "", contrasenia: "", telefono: "", rol: "buscador" });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [status, setStatus] = useState({ type: "idle", message: "" });
 
@@ -28,7 +28,7 @@ export default function LoginView() {
         setIsSubmitting(true);
         setStatus({ type: "idle", message: "" });
         try {
-            const data = await loginDemo(formData.email, formData.password);
+            const data = await loginDemo(formData);
             const user = new UserProfile(
                 data.user.id_usuario,
                 data.user.nombre,
@@ -49,10 +49,14 @@ export default function LoginView() {
         setIsSubmitting(true);
         setStatus({ type: "idle", message: "" });
         try {
-            const res = await registerUser(registerData);
+            const payload = { ...registerData };
+            if (!payload.telefono) {
+                delete payload.telefono;
+            }
+            const res = await registerUser(payload);
             setStatus({ type: "success", message: res.msg || "Registro exitoso. Ahora puedes iniciar sesión." });
             setMode("login");
-            setFormData({ email: registerData.correo, password: registerData.password });
+            setFormData({ email: registerData.correo, password: registerData.contrasenia });
         } catch (err) {
             setStatus({ type: "error", message: err.message || "Error al registrarse" });
         }
@@ -166,8 +170,8 @@ export default function LoginView() {
                                     <input
                                         className="field__input"
                                         type="password"
-                                        name="password"
-                                        value={registerData.password}
+                                        name="contrasenia"
+                                        value={registerData.contrasenia}
                                         onChange={handleRegisterChange}
                                         placeholder="Mín. 6 caracteres"
                                         autoComplete="new-password"
@@ -181,8 +185,8 @@ export default function LoginView() {
                                         value={registerData.rol}
                                         onChange={handleRegisterChange}
                                     >
-                                        <option value="seeker">Busco una república</option>
-                                        <option value="owner">Soy dueño de república</option>
+                                        <option value="buscador">Busco una república</option>
+                                        <option value="dueño">Soy dueño de república</option>
                                     </select>
                                 </label>
                             </div>
